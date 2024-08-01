@@ -5,6 +5,8 @@ namespace F8Framework.Core
 {
     public class LogViewer : SingletonMono<LogViewer>
     {
+        [Header("游戏运行时自动激活")] public bool autoActivate = true;
+
         [Header("5指长按启用")] public bool gestureEnable = true;
 
         [Space(5)] [Header("发送邮件")]
@@ -13,9 +15,10 @@ namespace F8Framework.Core
 
         protected override void Init()
         {
+            if (autoActivate) transform.GetChild(0).gameObject.SetActive(true);
             Initialize();
         }
-
+        
         public override void OnQuitGame()
         {
             Clear();
