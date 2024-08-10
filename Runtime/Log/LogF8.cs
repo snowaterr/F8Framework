@@ -231,7 +231,37 @@ namespace F8Framework.Core
         {
             LogColor("[资产日志]", color14, o);
         }
-        
+
+        public static void LogWarning(string s, Object context)
+        {
+            LogColorWarning("[Warning]", color11, s, context);
+        }
+
+        public static void LogWarning(string s, params object[] p)
+        {
+            LogColorWarning("[Warning]", color11, s, p);
+        }
+
+        public static void LogWarning(object o)
+        {
+            LogColorWarning("[Warning]", color11, o);
+        }
+
+        //public static void LogWarning(string s, Object context)
+        //{
+        //    Debug.LogWarning(s, context);
+        //}
+
+        //public static void LogWarning(string s, params object[] p)
+        //{
+        //    Debug.LogWarning((p != null && p.Length > 0 ? string.Format(s, p) : s));
+        //}
+
+        //public static void LogWarning(object o)
+        //{
+        //    Debug.LogWarning(o);
+        //}
+
         private static void LogColor(string logName, Color color, string s, Object context)
         {
             sb.Clear();
@@ -267,7 +297,43 @@ namespace F8Framework.Core
             sb.Append(o);
             Debug.Log(sb.ToString());
         }
-        
+
+        private static void LogColorWarning(string logName, Color color, string s, Object context)
+        {
+            sb.Clear();
+            sb = sb.AppendFormat(@"<color=#{0}>", ColorUtility.ToHtmlStringRGB(color));
+            sb.Append(DateTime.Now);
+            sb.Append(logName);
+            sb.Append("</color>");
+            sb.Append(s);
+            Debug.LogWarning(sb.ToString(), context);
+        }
+
+        private static void LogColorWarning(string logName, Color color, string s, params object[] p)
+        {
+            sb.Clear();
+            sb = sb.AppendFormat(@"<color=#{0}>", ColorUtility.ToHtmlStringRGB(color));
+            sb.Append(DateTime.Now);
+            sb.Append(logName);
+            sb.Append("</color>");
+            if (p != null && p.Length > 0)
+                sb.AppendFormat(s, p);
+            else
+                sb.Append(s);
+            Debug.LogWarning(sb.ToString());
+        }
+
+        private static void LogColorWarning(string logName, Color color, object o)
+        {
+            sb.Clear();
+            sb = sb.AppendFormat(@"<color=#{0}>", ColorUtility.ToHtmlStringRGB(color));
+            sb.Append(DateTime.Now);
+            sb.Append(logName);
+            sb.Append("</color>");
+            sb.Append(o);
+            Debug.LogWarning(sb.ToString());
+        }
+
         public static void LogToMainThread(string s, params object[] p)
         {
             string msg = (p != null && p.Length > 0 ? string.Format(s, p) : s);
@@ -297,21 +363,6 @@ namespace F8Framework.Core
         public static void LogAssertion(object o)
         {
             Debug.LogAssertion(o);
-        }
-
-        public static void LogWarning(string s, Object context)
-        {
-            Debug.LogWarning(s, context);
-        }
-        
-        public static void LogWarning(string s, params object[] p)
-        {
-            Debug.LogWarning((p != null && p.Length > 0 ? string.Format(s, p) : s));
-        }
-        
-        public static void LogWarning(object o)
-        {
-            Debug.LogWarning(o);
         }
         
         public static void LogError(string s, Object context)
