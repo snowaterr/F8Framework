@@ -56,7 +56,6 @@
 
     public static class ViewerConst
     {
-        public const int GESTURE_TOUCH_COUNT                        = 5;
-        public const float GESTURE_TOUCH_TIME_INTERVAL              = 1.0f;
+        public const float GESTURE_TOUCH_TIME_INTERVAL              = 1.5f;
     }
 }

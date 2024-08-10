@@ -7,7 +7,8 @@ namespace F8Framework.Core
     {
         [Header("游戏运行时自动激活")] public bool autoActivate = true;
 
-        [Header("5指长按启用")] public bool gestureEnable = true;
+        [Header("选择电脑显示面板的触发按键，其中BackQuote 是 ~")] public Viewer.CheakingKey CheakingKey = Viewer.CheakingKey.BackQuote;
+        [Header("手机多点长按显示面板，可选3指、4指、5指长按")] public Viewer.GestureTouchCount gestureTouchCount = Viewer.GestureTouchCount.Touch3Fingers;
 
         [Space(5)] [Header("发送邮件")]
         public MailData mailSetting = null;
@@ -56,7 +57,8 @@ namespace F8Framework.Core
             }
 
             viewer.Initialize();
-            SetGestureEnable();
+            SetCheakingKey();
+            SetGestureTouchCount();
         }
 
         private void Clear()
@@ -64,9 +66,14 @@ namespace F8Framework.Core
             Function.Instance.Clear();
         }
 
-        private void SetGestureEnable()
+        private void SetCheakingKey()
         {
-            viewer.SetGestureEnable(gestureEnable);
+            viewer.SetCheakingKey(CheakingKey);
+        }
+
+        private void SetGestureTouchCount()
+        {
+            viewer.SetGestureTouchCount(gestureTouchCount);
         }
 
         private void SetMailData()

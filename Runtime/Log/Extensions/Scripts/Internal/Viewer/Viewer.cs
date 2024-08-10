@@ -6,6 +6,21 @@ namespace F8Framework.Core
 {
     public class Viewer : MonoBehaviour
     {
+        public enum GestureTouchCount : int
+        {
+            Touch3Fingers = 3,
+            Touch4Fingers = 4,
+            Touch5Fingers = 5
+        }
+
+        public enum CheakingKey : int
+        {
+            BackQuote = 96,
+            F10 = 291,
+            F11 = 292,
+            F12 = 293,
+        }
+
         public GameObject pannel = null;
         [FormerlySerializedAs("tabView")] public TabLogView tabLogView = null;
         [FormerlySerializedAs("consoleView")] public ConsoleLogView consoleLogView = null;
@@ -20,7 +35,8 @@ namespace F8Framework.Core
         private int screenWidth = 0;
         private int screenHeight = 0;
 
-        private bool gestureEnable = false;
+        private GestureTouchCount gestureTouchCount = default;
+        private CheakingKey cheakingKey = default;
         private bool isTouchBegin = false;
         private float touchTime = 0f;
 
@@ -83,14 +99,19 @@ namespace F8Framework.Core
             systemLogView.Refresh();
         }
 
-        public void SetGestureEnable(bool enable)
+        public void SetGestureTouchCount(GestureTouchCount touchCount)
         {
-            gestureEnable = enable;
+            gestureTouchCount = touchCount;
+        }
+
+        public void SetCheakingKey(CheakingKey key)
+        {
+            cheakingKey = key;
         }
 
         private void Update()
         {
-            if (pannel.activeSelf == false && gestureEnable == true)
+            if (pannel.activeSelf == false)
             {
                 CheckGesture(true);
                 CheckKey(true);
@@ -148,7 +169,7 @@ namespace F8Framework.Core
 
         private void CheckGesture(bool show)
         {
-            if (Input.touchCount == ViewerConst.GESTURE_TOUCH_COUNT)
+            if (Input.touchCount == (int)gestureTouchCount)
             {
                 if (isTouchBegin == false)
                 {
@@ -174,7 +195,7 @@ namespace F8Framework.Core
 
         private void CheckKey(bool show)
         {
-            if (Input.GetKeyDown(KeyCode.BackQuote) == true)
+            if (Input.GetKeyDown((KeyCode)cheakingKey) == true)
             {
                 Show(show);
             }
