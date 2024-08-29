@@ -57,7 +57,7 @@ Unity 2021.3.15f1+
 
 3. 点击左上角 **+** 号，选择 **Add Package from git URL**
 
-4. 输入 <https://github.com/TippingGame/F8Framework.git> 或者我的fork链接 <https://github.com/snowaterr/F8Framework.git>，请确认导入成功
+4. 输入 <https://github.com/TippingGame/F8Framework.git>，请确认导入成功
 
 #### 网络问题
 
