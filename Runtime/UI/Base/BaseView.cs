@@ -1,7 +1,9 @@
 using System;
+using UnityEngine;
 
 namespace F8Framework.Core
 {
+    [RequireComponent(typeof(RectTransform))]
     public class BaseView : ComponentBind
     {
         public enum WindowState
@@ -11,7 +13,13 @@ namespace F8Framework.Core
             Ready,
             Closed
         }
-        
+
+        public RectTransform rectTransform => transform as RectTransform;
+        /// <summary>
+        /// UI所属的图层（canvas）
+        /// </summary>
+        public RectTransform Layer => UIManager.Instance.GetLayer(UIid);
+
         private int UIid;
         private string Guid;
         private object[] Args;

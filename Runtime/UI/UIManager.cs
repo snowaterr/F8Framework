@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 
 namespace F8Framework.Core
@@ -277,6 +278,41 @@ namespace F8Framework.Core
             _layerDialog.Clear(isDestroy);
             _layerGuide.Clear(isDestroy);
             _currentUIids.Clear();
+        }
+
+        public RectTransform GetLayer(int uiId)
+        {
+            if (!_configs.TryGetValue(uiId, out UIConfig config))
+            {
+                LogF8.LogView($"检查 ID 为 {uiId} 的 UI 失败，未找到配置。");
+                return null;
+            }
+
+            RectTransform result = null;
+
+            switch (config.Layer)
+            {
+                case LayerType.Game:
+                    result = _layerGame.transform as RectTransform;
+                    break;
+                case LayerType.UI:
+                    result = _layerUI.transform as RectTransform;
+                    break;
+                case LayerType.PopUp:
+                    result = _layerPopUp.transform as RectTransform;
+                    break;
+                case LayerType.Dialog:
+                    result = _layerDialog.transform as RectTransform;
+                    break;
+                case LayerType.Notify:
+                    result = _layerNotify.transform as RectTransform;
+                    break;
+                case LayerType.Guide:
+                    result = _layerGuide.transform as RectTransform;
+                    break;
+            }
+
+            return result;
         }
     }
 }
