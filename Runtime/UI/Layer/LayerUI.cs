@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using static UnityEngine.UI.CanvasScaler;
 
 namespace F8Framework.Core
 {
@@ -24,10 +25,23 @@ namespace F8Framework.Core
             _graphicRaycaster = gameObject.AddComponent<GraphicRaycaster>();
         }
 
-        public void Init(int sortOrder, RenderMode renderMode = RenderMode.ScreenSpaceOverlay)
+        public void Init(int sortOrder, RenderMode renderMode = RenderMode.ScreenSpaceOverlay,
+            CanvasScaler.ScaleMode scaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize)
         {
             _canvas.sortingOrder = sortOrder;
-            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _canvas.renderMode = renderMode;
+            _canvasScaler.uiScaleMode = scaleMode;
+            switch (scaleMode)
+            {
+                case CanvasScaler.ScaleMode.ConstantPixelSize:
+                    break;
+                case CanvasScaler.ScaleMode.ScaleWithScreenSize:
+                    _canvasScaler.referenceResolution = new Vector2(1920, 1080);        // 默认值
+                    _canvasScaler.screenMatchMode = ScreenMatchMode.Expand;
+                    break;
+                case CanvasScaler.ScaleMode.ConstantPhysicalSize:
+                    break;
+            }
         }
         
         public string Add(int uiId, UIConfig config, object[] parameters = null, UICallbacks callbacks = null)

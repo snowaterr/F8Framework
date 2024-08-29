@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace F8Framework.Core
 {
@@ -39,7 +40,8 @@ namespace F8Framework.Core
         private Dictionary<int, UIConfig> _configs = new Dictionary<int, UIConfig>();
         private List<int> _currentUIids = new List<int>();
         
-        public void Initialize(Dictionary<int, UIConfig> configs)
+        public void Initialize(Dictionary<int, UIConfig> configs, RenderMode renderMode = RenderMode.ScreenSpaceOverlay,
+            CanvasScaler.ScaleMode scaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize)
         {
             _configs = configs;
             
@@ -63,13 +65,13 @@ namespace F8Framework.Core
             _layerDialog = dialogGo.AddComponent<LayerDialog>();
             _layerNotify = notifyGo.AddComponent<LayerNotify>();
             _layerGuide = guideGo.AddComponent<LayerGuide>();
-            
-            _layerGame.Init(100);
-            _layerUI.Init(200);
-            _layerPopUp.Init(300);
-            _layerDialog.Init(400);
-            _layerNotify.Init(500);
-            _layerGuide.Init(600);
+
+            _layerGame.Init  (  100, renderMode, scaleMode);
+            _layerUI.Init    (  200, renderMode, scaleMode);
+            _layerPopUp.Init (  300, renderMode, scaleMode);
+            _layerDialog.Init(  400, renderMode, scaleMode);
+            _layerNotify.Init(  500, renderMode, scaleMode);
+            _layerGuide.Init (  600, renderMode, scaleMode);
         }
 
         public void OnInit(object createParam)
