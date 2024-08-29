@@ -30,6 +30,9 @@ namespace F8Framework.Core
 
     public class UIManager : ModuleSingletonMono<UIManager>, IModule
     {
+        // 默认的canvas参考分辨率，一般固定1080p即可
+        public static readonly Vector2 CanvasReferenceResolution = new Vector2(1920, 1080);
+
         private LayerGame _layerGame;
         private LayerUI _layerUI;
         private LayerPopUp _layerPopUp;

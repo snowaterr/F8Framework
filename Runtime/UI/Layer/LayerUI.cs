@@ -36,8 +36,8 @@ namespace F8Framework.Core
                 case CanvasScaler.ScaleMode.ConstantPixelSize:
                     break;
                 case CanvasScaler.ScaleMode.ScaleWithScreenSize:
-                    _canvasScaler.referenceResolution = new Vector2(1920, 1080);        // 默认值
-                    _canvasScaler.screenMatchMode = ScreenMatchMode.Expand;
+                    _canvasScaler.referenceResolution = UIManager.CanvasReferenceResolution;
+                    _canvasScaler.screenMatchMode = ScreenMatchMode.Expand;             // 默认 Expand
                     break;
                 case CanvasScaler.ScaleMode.ConstantPhysicalSize:
                     break;
