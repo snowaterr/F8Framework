@@ -21,8 +21,9 @@ namespace F8Framework.Core.Editor
             if (prefab != null)
             {
                 // 实例化预制件
-                var instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
-                //var instance = GameObject.Instantiate(prefab);
+                //var instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+                var instance = GameObject.Instantiate(prefab);
+                instance.name = "F8 " + prefab.name;
                 instance.transform.SetAsLastSibling();
                 instance.transform.GetChild(0).gameObject.SetActive(false);
                 LogF8.LogUtil("成功添加 LogViewer 到当前场景");
