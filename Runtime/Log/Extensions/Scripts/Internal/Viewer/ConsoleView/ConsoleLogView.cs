@@ -105,7 +105,7 @@ namespace F8Framework.Core
                 else if (e.Error != null)
                 {
                     string message = string.Format(ConsoleViewConst.SEND_MAIL_FAILED, e.Error.Message);
-                    LogF8.LogError(message);
+                    LogF8.LogWarning(message);
                     Popup.Instance.ShowPopup(message, "ERROR");
                 }
                 else

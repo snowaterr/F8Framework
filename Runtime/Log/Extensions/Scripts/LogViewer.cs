@@ -5,8 +5,6 @@ namespace F8Framework.Core
 {
     public class LogViewer : SingletonMono<LogViewer>
     {
-        [Header("游戏运行时自动激活")] public bool autoActivate = true;
-
         [Header("选择电脑显示面板的触发按键，其中BackQuote 是 ~")] public Viewer.CheakingKey CheakingKey = Viewer.CheakingKey.BackQuote;
         [Header("手机多点长按显示面板，可选3指、4指、5指长按")] public Viewer.GestureTouchCount gestureTouchCount = Viewer.GestureTouchCount.Touch3Fingers;
 
@@ -16,7 +14,6 @@ namespace F8Framework.Core
 
         protected override void Init()
         {
-            if (autoActivate) transform.GetChild(0).gameObject.SetActive(true);
             Initialize();
         }
         
@@ -47,6 +44,8 @@ namespace F8Framework.Core
 
         private void Initialize()
         {
+            transform.GetChild(0).gameObject.SetActive(true);   // 游戏运行时确保Viewer激活
+
             Function.Instance.Initialize();
 
             SetMailData();

@@ -1,6 +1,7 @@
 ﻿using UnityEngine.Serialization;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 namespace F8Framework.Core
 {
@@ -201,14 +202,28 @@ namespace F8Framework.Core
             }
         }
 
+        public void Show(bool show)
+        {
+            if (show)
+            {
+                Show();
+            }
+            else
+            {
+                Hide();
+            }
+        }
+
         public void Show()
         {
             pannel.SetActive(true);
+            CheakEventSystem();
         }
 
-        private void Show(bool show)
+        private void Hide()
         {
-            pannel.SetActive(show);
+            pannel.SetActive(false);
+            Popup.Instance.OnClickCloseButton();        // 弹窗一并隐藏
         }
 
         public void OnAlphaValueChanged(float value)
@@ -223,6 +238,15 @@ namespace F8Framework.Core
                 Show(true);
                 SelectConsole();
                 consoleLogView.ListMoveToBottom();
+            }
+        }
+
+        private void CheakEventSystem()
+        {
+            if (EventSystem.current == null)
+            {
+                Popup.Instance.ShowPopup("Unable to find 'EventSystem', please add 'EventSystem' GameObject to this scene", "ERROR");
+                LogF8.LogWarning("Unable to find 'EventSystem', please add 'EventSystem' GameObject to this scene");
             }
         }
     }
