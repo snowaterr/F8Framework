@@ -11,33 +11,51 @@ namespace F8Framework.Core.ZIM
     /// </summary>
     public class SceneMgr : ModuleSingletonMono<SceneMgr>, IModule
     {
-        // 0-1，在加载时才有值，否则恒为1
+        /// <summary>
+        /// 异步加载场景时，输出加载进度，取值范围0-1，在加载时才有值，否则恒为1
+        /// </summary>
         public float LoadingProgress { get; private set; }
         public Scene CurrentScene => SceneManager.GetActiveScene();
+        public event Action<Scene> SceneLoaded;
+        public event Action<Scene> SceneUnloaded;
 
+        //private readonly int EVENT_START_ID = 10100;        // 10100 - 11000，预留900个场景事件
 
-        private readonly int EVENT_START_ID = 10100;        // 10100 - 11000，预留900个场景事件
+        ///// <summary>
+        ///// 根据id，添加场景加载的事件，无参数
+        ///// </summary>
+        //public void AddLoadListener(int sceneId, Action listener)
+        //{
+        //    //MessageManager.Instance.AddEventListener(EVENT_START_ID + sceneId, (i)=> listener((Scene)i[0]), this);
+        //    MessageManager.Instance.AddEventListener(GetLoadId(sceneId), listener, this);
+        //}
 
-        /// <summary>
-        /// 根据id，添加场景加载完成的事件
-        /// </summary>
-        /// <param name="sceneId"></param>
-        /// <param name="listener"></param>
-        public void AddLoadCompleteListener(int sceneId, Action listener)
-        {
-            MessageManager.Instance.AddEventListener(EVENT_START_ID + sceneId, listener, this);
-        }
+        ///// <summary>
+        ///// 根据id，添加场景卸载的事件，无参数
+        ///// </summary>
+        //public void AddUnloadListener(int sceneId, Action listener)
+        //{
+        //    MessageManager.Instance.AddEventListener(GetUnloadId(sceneId), listener, this);
+        //}
+
+        //private int GetLoadId(int sceneId) => EVENT_START_ID + sceneId * 2;
+        //private int GetUnloadId(int sceneId) => EVENT_START_ID + sceneId * 2 + 1;
 
         /// <summary>
         /// 同步加载场景
         /// </summary>
         /// <param name="sceneId">场景id，与build settings里的index一致</param>
         /// <param name="callBack">加载之后要做的事情(一次性)</param>
-        public void LoadScene(int sceneId, UnityAction callBack = null)
+        public void LoadScene(int sceneId, UnityAction callBack = null) => StartCoroutine(IELoadScene(sceneId, callBack));
+
+        private IEnumerator IELoadScene(int sceneId, UnityAction callBack = null)
         {
+            //MessageManager.Instance.DispatchEvent(GetUnloadId(CurrentScene.buildIndex));
             SceneManager.LoadScene(sceneId);
+            while (SceneManager.GetActiveScene().buildIndex != sceneId)  // 等待场景跳转
+                yield return null;
             callBack?.Invoke();
-            MessageManager.Instance.DispatchEvent(EVENT_START_ID + sceneId);
+            //MessageManager.Instance.DispatchEvent(GetLoadId(sceneId));
         }
 
         /// <summary>
@@ -90,15 +108,34 @@ namespace F8Framework.Core.ZIM
             }
 
             // 跳转场景
+            //MessageManager.Instance.DispatchEvent(GetUnloadId(CurrentScene.buildIndex));
             LoadingProgress = 1;
             ao.allowSceneActivation = true;
+            while (SceneManager.GetActiveScene().buildIndex != sceneId)  // 等待场景跳转
+                yield return null;
             callBack?.Invoke();
-            MessageManager.Instance.DispatchEvent(EVENT_START_ID + sceneId);
+            //MessageManager.Instance.DispatchEvent(GetLoadId(sceneId));
+        }
+
+        private void OnSceneLoad(Scene scene, LoadSceneMode mode) {
+            if (mode == LoadSceneMode.Additive) 
+            {
+                LogF8.LogWarning("框架里的场景管理器不支持Additive模式加载");
+                return;
+            }
+            SceneLoaded?.Invoke(scene);
+        }
+
+        private void OnSceneUnload(Scene scene)
+        {
+            SceneUnloaded?.Invoke(scene);
         }
 
         public void OnInit(object createParam)
         {
             LoadingProgress = 1;
+            SceneManager.sceneLoaded += OnSceneLoad;
+            SceneManager.sceneUnloaded += OnSceneUnload;
         }
 
         public void OnUpdate()
@@ -118,7 +155,8 @@ namespace F8Framework.Core.ZIM
 
         public void OnTermination()
         {
-            
+            SceneManager.sceneLoaded -= OnSceneLoad;
+            SceneManager.sceneUnloaded -= OnSceneUnload;
         }
     }
 }
