@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace F8Framework.Core
@@ -75,6 +76,15 @@ namespace F8Framework.Core
             _layerDialog.Init(  400, renderMode, scaleMode);
             _layerNotify.Init(  500, renderMode, scaleMode);
             _layerGuide.Init (  600, renderMode, scaleMode);
+
+            GameObject eventSystem = FindObjectOfType<EventSystem>().gameObject;
+            if (eventSystem == null)
+            {
+                eventSystem = new GameObject("EventSystem");
+                eventSystem.AddComponent<EventSystem>();
+                eventSystem.AddComponent<StandaloneInputModule>();
+            }
+            eventSystem.SetParent(transform);
         }
 
         public void OnInit(object createParam)
