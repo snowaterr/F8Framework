@@ -1,5 +1,6 @@
 using System.Collections;
 using F8Framework.Core;
+using F8Framework.Core.ZIM;
 using F8Framework.F8ExcelDataClass;
 using UnityEngine;
 
@@ -35,6 +36,9 @@ namespace F8Framework.Launcher
             FF8.SDK = ModuleCenter.CreateModule<SDKManager>();
             FF8.Download = ModuleCenter.CreateModule<DownloadManager>();
             FF8.LogWriter = ModuleCenter.CreateModule<F8LogWriter>();
+
+            // ZIM
+            FF8.Scene = ModuleCenter.CreateModule<SceneMgr>();
 
             StartGame();
             yield break;
