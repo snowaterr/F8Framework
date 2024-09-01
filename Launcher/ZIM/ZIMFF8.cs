@@ -20,7 +20,6 @@ namespace F8Framework.Launcher
             }
             set
             {
-                LogF8.Log("Set SceneMgr");
                 if (_scene == null)
                     _scene = value;
             }
