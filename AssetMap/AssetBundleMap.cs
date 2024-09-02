@@ -6,7 +6,12 @@ namespace F8Framework.Core
 {
    public static class AssetBundleMap
    {
-       public class AssetMapping
+        public static partial class ZIMF8Core
+        {
+            public static int ID = 5;
+        }
+
+        public class AssetMapping
        {
            public string AbName;
            public string[] AssetPath;
