@@ -77,7 +77,7 @@ namespace F8Framework.Core
             _layerNotify.Init(  500, renderMode, scaleMode);
             _layerGuide.Init (  600, renderMode, scaleMode);
 
-            GameObject eventSystem = FindObjectOfType<EventSystem>().gameObject;
+            GameObject eventSystem = FindObjectOfType<EventSystem>()?.gameObject;
             if (eventSystem == null)
             {
                 eventSystem = new GameObject("EventSystem");

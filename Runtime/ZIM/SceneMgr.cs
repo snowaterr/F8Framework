@@ -62,9 +62,9 @@ namespace F8Framework.Core.ZIM
         /// 异步加载场景，成员变量LoadingProgress可获取进度值
         /// </summary>
         /// <param name="sceneId">场景id，与build settings里的index一致</param>
-        /// <param name="isSmoothLoading">是否平滑加载（适用于大于2秒的加载，加载进度值更光滑）</param>
+        /// <param name="isSmoothLoading">是否平滑加载（设置为true后会平滑加载，可通过this.LoadingProgress读取到光滑的加载进度，适用于大于2秒的场景转换）</param>
         /// <param name="callBack">异步加载之后要做的事情(一次性)</param>
-        public void LoadSceneAsyn(int sceneId, bool isSmoothLoading, UnityAction callBack = null)
+        public void LoadSceneAsyn(int sceneId, bool isSmoothLoading = false, UnityAction callBack = null)
         {
             if (LoadingProgress != 1) 
             {
