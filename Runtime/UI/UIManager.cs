@@ -78,7 +78,17 @@ namespace F8Framework.Core
             _layerDialog.Init(400);
             _layerNotify.Init(500);
             _layerGuide.Init(600);
-            
+
+            // 自动设置 EventSystem
+            GameObject eventSystem = FindObjectOfType<EventSystem>()?.gameObject;
+            if (eventSystem == null)
+            {
+                eventSystem = new GameObject("EventSystem");
+                eventSystem.AddComponent<EventSystem>();
+                eventSystem.AddComponent<StandaloneInputModule>();
+            }
+            eventSystem.SetParent(transform);
+
             _layers = new Dictionary<LayerType, LayerUI>
             {
                 { LayerType.Game, _layerGame },
@@ -169,10 +179,10 @@ namespace F8Framework.Core
         
         public void OnInit(object createParam)
         {
-            if (EventSystem.current == null)
-            {
-                LogF8.LogError("场景中缺少：EventSystem 组件");
-            }
+            //if (EventSystem.current == null)
+            //{
+            //    LogF8.LogError("场景中缺少：EventSystem 组件");
+            //}
         }
 
         public void OnUpdate()
