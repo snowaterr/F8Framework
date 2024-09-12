@@ -44,8 +44,10 @@ namespace F8Framework.Core
         private Dictionary<int, UIConfig> _configs = new Dictionary<int, UIConfig>();
         private List<int> _currentUIids = new List<int>();
         
-        public void Initialize(Dictionary<int, UIConfig> configs, RenderMode renderMode = RenderMode.ScreenSpaceOverlay,
-            CanvasScaler.ScaleMode scaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize)
+        // 将所有的层放入一个字典中
+        private Dictionary<LayerType, LayerUI> _layers;
+        
+        public void Initialize(Dictionary<int, UIConfig> configs)
         {
             _configs = configs;
             
@@ -69,27 +71,108 @@ namespace F8Framework.Core
             _layerDialog = dialogGo.AddComponent<LayerDialog>();
             _layerNotify = notifyGo.AddComponent<LayerNotify>();
             _layerGuide = guideGo.AddComponent<LayerGuide>();
-
-            _layerGame.Init  (  100, renderMode, scaleMode);
-            _layerUI.Init    (  200, renderMode, scaleMode);
-            _layerPopUp.Init (  300, renderMode, scaleMode);
-            _layerDialog.Init(  400, renderMode, scaleMode);
-            _layerNotify.Init(  500, renderMode, scaleMode);
-            _layerGuide.Init (  600, renderMode, scaleMode);
-
-            GameObject eventSystem = FindObjectOfType<EventSystem>()?.gameObject;
-            if (eventSystem == null)
+            
+            _layerGame.Init(100);
+            _layerUI.Init(200);
+            _layerPopUp.Init(300);
+            _layerDialog.Init(400);
+            _layerNotify.Init(500);
+            _layerGuide.Init(600);
+            
+            _layers = new Dictionary<LayerType, LayerUI>
             {
-                eventSystem = new GameObject("EventSystem");
-                eventSystem.AddComponent<EventSystem>();
-                eventSystem.AddComponent<StandaloneInputModule>();
-            }
-            eventSystem.SetParent(transform);
+                { LayerType.Game, _layerGame },
+                { LayerType.UI, _layerUI },
+                { LayerType.PopUp, _layerPopUp },
+                { LayerType.Dialog, _layerDialog },
+                { LayerType.Notify, _layerNotify },
+                { LayerType.Guide, _layerGuide }
+            };
         }
-
+        
+        public void SetCanvas(LayerType? layer = null, int sortOrder = 0, string sortingLayerName = "Default", RenderMode renderMode = RenderMode.ScreenSpaceOverlay, bool pixelPerfect = false, UnityEngine.Camera camera = null)
+        {
+            // 如果 layer 为 null，修改所有层
+            if (layer == null)
+            {
+                foreach (var canvasLayer in _layers.Values)
+                {
+                    canvasLayer.Init(sortOrder, sortingLayerName, renderMode, pixelPerfect, camera);
+                }
+            }
+            else if (_layers.ContainsKey(layer.Value))  // 否则只修改指定层
+            {
+                _layers[layer.Value].Init(sortOrder, sortingLayerName, renderMode, pixelPerfect, camera);
+            }
+        }
+        
+        public void SetCanvasScaler(LayerType? layer = null,
+            CanvasScaler.ScaleMode scaleMode = CanvasScaler.ScaleMode.ConstantPixelSize,
+            float scaleFactor = 1f,
+            float referencePixelsPerUnit = 100f)
+        {
+            // 如果 layer 为 null，修改所有层
+            if (layer == null)
+            {
+                foreach (var canvasLayer in _layers.Values)
+                {
+                    canvasLayer.SetCanvasScaler(scaleMode, scaleFactor, referencePixelsPerUnit);
+                }
+            }
+            else if (_layers.ContainsKey(layer.Value))  // 否则只修改指定层
+            {
+                _layers[layer.Value].SetCanvasScaler(scaleMode, scaleFactor, referencePixelsPerUnit);
+            }
+        }
+        
+        public void SetCanvasScaler(LayerType? layer = null,
+            CanvasScaler.ScaleMode scaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize,
+            Vector2? referenceResolution = null,
+            CanvasScaler.ScreenMatchMode screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight,
+            float matchWidthOrHeight = 0f,
+            float referencePixelsPerUnit = 100f)
+        {
+            // 如果 layer 为 null，修改所有层
+            if (layer == null)
+            {
+                foreach (var canvasLayer in _layers.Values)
+                {
+                    canvasLayer.SetCanvasScaler(scaleMode, referenceResolution, screenMatchMode, matchWidthOrHeight, referencePixelsPerUnit);
+                }
+            }
+            else if (_layers.ContainsKey(layer.Value))  // 否则只修改指定层
+            {
+                _layers[layer.Value].SetCanvasScaler(scaleMode, referenceResolution, screenMatchMode, matchWidthOrHeight, referencePixelsPerUnit);
+            }
+        }
+        
+        public void SetCanvasScaler(LayerType? layer = null,
+            CanvasScaler.ScaleMode scaleMode = CanvasScaler.ScaleMode.ConstantPhysicalSize,
+            CanvasScaler.Unit physicalUnit = CanvasScaler.Unit.Points,
+            float fallbackScreenDPI = 96f,
+            float defaultSpriteDPI = 96f,
+            float referencePixelsPerUnit = 100f)
+        {
+            // 如果 layer 为 null，修改所有层
+            if (layer == null)
+            {
+                foreach (var canvasLayer in _layers.Values)
+                {
+                    canvasLayer.SetCanvasScaler(scaleMode, physicalUnit, fallbackScreenDPI, defaultSpriteDPI, referencePixelsPerUnit);
+                }
+            }
+            else if (_layers.ContainsKey(layer.Value))  // 否则只修改指定层
+            {
+                _layers[layer.Value].SetCanvasScaler(scaleMode, physicalUnit, fallbackScreenDPI, defaultSpriteDPI, referencePixelsPerUnit);
+            }
+        }
+        
         public void OnInit(object createParam)
         {
-            
+            if (EventSystem.current == null)
+            {
+                LogF8.LogError("场景中缺少：EventSystem 组件");
+            }
         }
 
         public void OnUpdate()
