@@ -37,18 +37,26 @@ namespace F8Framework.Core.Editor
 
         // 使用StringBuilder来优化字符串的重复构造
         private static StringBuilder FileIndex = new StringBuilder();
-        
+
+        private static string ScriptPath = "";
         private static string GetScriptPath()
         {
-            MonoScript monoScript = MonoScript.FromScriptableObject(CreateInstance<ExcelDataTool>());
+            if (ScriptPath == "")
+            {
+                MonoScript monoScript = MonoScript.FromScriptableObject(CreateInstance<ExcelDataTool>());
 
-            // 获取脚本在 Assets 中的相对路径
-            string scriptRelativePath = AssetDatabase.GetAssetPath(monoScript);
+                // 获取脚本在 Assets 中的相对路径
+                string scriptRelativePath = AssetDatabase.GetAssetPath(monoScript);
 
-            // 获取绝对路径并规范化
-            string scriptPath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", scriptRelativePath));
+                // 获取绝对路径并规范化
+                string scriptPath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", scriptRelativePath));
 
-            return scriptPath;
+                return ScriptPath = scriptPath;
+            }
+            else
+            {
+                return ScriptPath;
+            }
         }
         
         private static void CreateAsmdefFile()
