@@ -116,20 +116,28 @@ namespace F8Framework.Core.Editor
                     .Where(s => s.EndsWith(".xls") || s.EndsWith(".xlsx")).ToArray();
                 LogF8.LogError("暂无可以导入的数据表！自动为你创建：【Demo工作表.xlsx / 本地化.xlsx】两个表格！" + lastExcelPath + " 目录");
             }
-            
-            string F8DataManagerPath = FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 3)) + "/ConfigData/F8DataManager";
-            FileTools.SafeClearDir(F8DataManagerPath);
-            LogF8.LogConfig("清空目录：" + F8DataManagerPath);
-            FileTools.CheckDirAndCreateWhenNeeded(F8DataManagerPath);
-            string F8ExcelDataClassPath = FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 3)) + "/ConfigData/F8ExcelDataClass";
-            FileTools.SafeClearDir(F8ExcelDataClassPath);
-            LogF8.LogConfig("清空目录：" + F8ExcelDataClassPath);
-            FileTools.CheckDirAndCreateWhenNeeded(F8ExcelDataClassPath);
+
             string F8ExcelDataClassPathDLL = FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 3)) + "/ConfigData/" + CODE_NAMESPACE + ".asmdef";
-            FileTools.SafeDeleteFile(F8ExcelDataClassPathDLL);
-            LogF8.LogConfig("删除文件：" + F8ExcelDataClassPathDLL);
-            FileTools.SafeDeleteFile(F8ExcelDataClassPathDLL + ".meta");
-            FileTools.SafeDeleteFile(Application.dataPath + DataManagerFolder + "/F8DataManager.asmref");
+            if (File.Exists(F8ExcelDataClassPathDLL))
+            {
+                FileTools.SafeDeleteFile(F8ExcelDataClassPathDLL);
+                LogF8.LogConfig("删除文件：" + F8ExcelDataClassPathDLL);
+                FileTools.SafeDeleteFile(F8ExcelDataClassPathDLL + ".meta");
+                FileTools.SafeDeleteFile(Application.dataPath + DataManagerFolder + "/F8DataManager.asmref");
+                string F8DataManagerPath = FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 3)) + "/ConfigData/F8DataManager";
+                FileTools.SafeClearDir(F8DataManagerPath);
+                LogF8.LogConfig("清空目录：" + F8DataManagerPath);
+                FileTools.CheckDirAndCreateWhenNeeded(F8DataManagerPath);
+                string F8ExcelDataClassPath = FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 3)) + "/ConfigData/F8ExcelDataClass";
+                FileTools.SafeClearDir(F8ExcelDataClassPath);
+                LogF8.LogConfig("清空目录：" + F8ExcelDataClassPath);
+                FileTools.CheckDirAndCreateWhenNeeded(F8ExcelDataClassPath);
+            }
+            else
+            {
+                LogF8.LogConfig("ConfigData配置文件已清空，若仍存在.asmref冲突报错，请手动清除框架中的ConfigData文件夹内的所有文件");
+            }
+            
             CreateAsmdefFile();
             AssetDatabase.Refresh();
             
