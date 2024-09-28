@@ -1,5 +1,4 @@
 ﻿using UnityEditor;
-using UnityEditor.PackageManager;
 using UnityEngine;
 
 namespace F8Framework.Core.Editor
@@ -26,6 +25,7 @@ namespace F8Framework.Core.Editor
                 instance.name = "F8 " + prefab.name;
                 instance.transform.SetAsLastSibling();
                 instance.transform.GetChild(0).gameObject.SetActive(false);
+                Undo.RegisterCreatedObjectUndo(instance, "[F8Framework] 添加LogViewer到当前场景");
                 LogF8.LogUtil("成功添加 LogViewer 到当前场景");
             }
             else
