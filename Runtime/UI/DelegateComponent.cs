@@ -47,7 +47,9 @@ namespace F8Framework.Core
             {
                 viewParams.Callbacks.OnRemoved(viewParams.Params, viewParams.UIid);
             }
-
+            
+            ViewParams?.BaseView?.Removed();
+            
             if (isDestroy)
             {
                 Destroy(gameObject);
@@ -64,9 +66,6 @@ namespace F8Framework.Core
 
         private void OnDestroy()
         {
-            // 触发窗口组件上窗口移除之后的事件
-            ViewParams.BaseView?.Removed();
-
             ViewParams = null;
         }
     }

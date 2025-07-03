@@ -37,6 +37,10 @@ namespace F8Framework.Core
 
 		internal override void Localize()
 		{
+			if (injector == null)
+			{
+				return;
+			}
 			ChangeID(textId);
 		}
 
@@ -68,7 +72,7 @@ namespace F8Framework.Core
 		public void Clear()
 		{
 			textId = null;
-			injector.Inject("", this);
+			injector?.Inject("", this);
 		}
 	}
 }

@@ -6,20 +6,16 @@ namespace F8Framework.Core.Editor
     public class AssetBeDepend
     {
         // 存储所有依赖关系
-        private static Dictionary<string, List<string>> referenceCacheDic;
+        private static Dictionary<string, List<string>> referenceCacheDic = new Dictionary<string, List<string>>();
         
         private static List<string> referenceCacheList = new List<string>();
         
-        [MenuItem("Assets/（F8资产功能）/（寻找资源是否被引用）", false , 1000)]
+        [MenuItem("Assets/（F8资产功能）/（寻找资源是否被引用）", false , 1010)]
         private static void FindReferences()
         {
             referenceCacheList.Clear();
-            if (referenceCacheDic == null)
-            {
-                referenceCacheDic = new Dictionary<string, List<string>>();
-                CollectDepend();
-            }
-
+            referenceCacheDic.Clear();
+            CollectDepend();
             // 获取所有选中 文件、文件夹的 GUID
             string[] guids = Selection.assetGUIDs;
             foreach (var guid in guids)

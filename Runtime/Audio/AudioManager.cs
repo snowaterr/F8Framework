@@ -4,27 +4,28 @@ using UnityEngine.Audio;
 
 namespace F8Framework.Core
 {
-    [UpdateRefresh]
     public class AudioManager : ModuleSingletonMono<AudioManager>, IModule
     {
         /*----------背景音乐----------*/
-        private AudioMusic _audioMusic;
+        public AudioMusic AudioMusic;
         private float _volumeMusic = 1f;
         private bool _switchMusic = true;
         
         /*----------人声----------*/
-        private AudioMusic _audioMusicVoice;
+        public AudioMusic AudioMusicVoice;
         private float _volumeVoice = 1f;
         private bool _switchVoice = true;
         
         /*----------特效声----------*/
-        private AudioMusic _audioMusicBtnClick;
+        public AudioMusic AudioMusicBtnClick;
         
-        private AudioMusic _audioMusicUISound;
+        public AudioMusic AudioMusicUISound;
         
-        private AudioMusic _audioMusicAudioEffect;
-        
+        public AudioMusic AudioMusicAudioEffect;
+
+        /*----------一次性特效声----------*/
         private AudioEffect _audioMusicAudioEffect3D;
+        
         private AudioMixerGroup _audioEffectMixerGroup;
         
         private float _volumeAudioEffect = 1f;
@@ -44,38 +45,38 @@ namespace F8Framework.Core
             _transform = this.transform;
             GameObject gameObjectMusic = new GameObject("Music", typeof(AudioSource));
             gameObjectMusic.transform.SetParent(_transform);
-            _audioMusic = new AudioMusic();
-            _audioMusic.MusicSource = gameObjectMusic.GetComponent<AudioSource>();
-            _audioMusic.MusicSource.playOnAwake = false;
-            _audioMusic.MusicSource.loop = false;
+            AudioMusic = new AudioMusic();
+            AudioMusic.MusicSource = gameObjectMusic.GetComponent<AudioSource>();
+            AudioMusic.MusicSource.playOnAwake = false;
+            AudioMusic.MusicSource.loop = false;
 
             GameObject gameObjectVoice = new GameObject("Voice", typeof(AudioSource));
             gameObjectVoice.transform.SetParent(_transform);
-            _audioMusicVoice = new AudioMusic();
-            _audioMusicVoice.MusicSource = gameObjectVoice.GetComponent<AudioSource>();
-            _audioMusicVoice.MusicSource.playOnAwake = false;
-            _audioMusicVoice.MusicSource.loop = false;
+            AudioMusicVoice = new AudioMusic();
+            AudioMusicVoice.MusicSource = gameObjectVoice.GetComponent<AudioSource>();
+            AudioMusicVoice.MusicSource.playOnAwake = false;
+            AudioMusicVoice.MusicSource.loop = false;
 
             GameObject gameObjectBtnClick = new GameObject("BtnClick", typeof(AudioSource));
             gameObjectBtnClick.transform.SetParent(_transform);
-            _audioMusicBtnClick = new AudioMusic();
-            _audioMusicBtnClick.MusicSource = gameObjectBtnClick.GetComponent<AudioSource>();
-            _audioMusicBtnClick.MusicSource.playOnAwake = false;
-            _audioMusicBtnClick.MusicSource.loop = false;
+            AudioMusicBtnClick = new AudioMusic();
+            AudioMusicBtnClick.MusicSource = gameObjectBtnClick.GetComponent<AudioSource>();
+            AudioMusicBtnClick.MusicSource.playOnAwake = false;
+            AudioMusicBtnClick.MusicSource.loop = false;
             
             GameObject gameObjectUISound = new GameObject("UISound", typeof(AudioSource));
             gameObjectUISound.transform.SetParent(_transform);
-            _audioMusicUISound = new AudioMusic();
-            _audioMusicUISound.MusicSource = gameObjectUISound.GetComponent<AudioSource>();
-            _audioMusicUISound.MusicSource.playOnAwake = false;
-            _audioMusicUISound.MusicSource.loop = false;
+            AudioMusicUISound = new AudioMusic();
+            AudioMusicUISound.MusicSource = gameObjectUISound.GetComponent<AudioSource>();
+            AudioMusicUISound.MusicSource.playOnAwake = false;
+            AudioMusicUISound.MusicSource.loop = false;
             
             GameObject gameObjectAudioEffect = new GameObject("AudioEffect", typeof(AudioSource));
             gameObjectAudioEffect.transform.SetParent(_transform);
-            _audioMusicAudioEffect = new AudioMusic();
-            _audioMusicAudioEffect.MusicSource = gameObjectAudioEffect.GetComponent<AudioSource>();
-            _audioMusicAudioEffect.MusicSource.playOnAwake = false;
-            _audioMusicAudioEffect.MusicSource.loop = false;
+            AudioMusicAudioEffect = new AudioMusic();
+            AudioMusicAudioEffect.MusicSource = gameObjectAudioEffect.GetComponent<AudioSource>();
+            AudioMusicAudioEffect.MusicSource.playOnAwake = false;
+            AudioMusicAudioEffect.MusicSource.loop = false;
             
             _audioMusicAudioEffect3D = new AudioEffect();
 
@@ -95,22 +96,18 @@ namespace F8Framework.Core
         /// <param name="audioMixer"></param>
         public void SetAudioMixer(AudioMixer audioMixer)
         {
-            _audioMusic.MusicSource.outputAudioMixerGroup = audioMixer.FindMatchingGroups("Master/Music")[0];
-            _audioMusicVoice.MusicSource.outputAudioMixerGroup = audioMixer.FindMatchingGroups("Master/Voice")[0];
-            _audioMusicBtnClick.MusicSource.outputAudioMixerGroup = audioMixer.FindMatchingGroups("Master/SoundFx")[0];
-            _audioMusicUISound.MusicSource.outputAudioMixerGroup = audioMixer.FindMatchingGroups("Master/SoundFx")[0];
-            _audioMusicAudioEffect.MusicSource.outputAudioMixerGroup = audioMixer.FindMatchingGroups("Master/SoundFx")[0];
+            AudioMusic.MusicSource.outputAudioMixerGroup = audioMixer.FindMatchingGroups("Master/Music")[0];
+            AudioMusicVoice.MusicSource.outputAudioMixerGroup = audioMixer.FindMatchingGroups("Master/Voice")[0];
+            AudioMusicBtnClick.MusicSource.outputAudioMixerGroup = audioMixer.FindMatchingGroups("Master/SoundFx")[0];
+            AudioMusicUISound.MusicSource.outputAudioMixerGroup = audioMixer.FindMatchingGroups("Master/SoundFx")[0];
+            AudioMusicAudioEffect.MusicSource.outputAudioMixerGroup = audioMixer.FindMatchingGroups("Master/SoundFx")[0];
             _audioEffectMixerGroup = audioMixer.FindMatchingGroups("Master/SoundFx")[0];
             _audioMixer = audioMixer;
         }
         
         public void OnUpdate()
         {
-            _audioMusic.Tick();
-            _audioMusicVoice.Tick();
-            _audioMusicBtnClick.Tick();
-            _audioMusicUISound.Tick();
-            _audioMusicAudioEffect.Tick();
+            
         }
         
         public void OnLateUpdate()
@@ -125,6 +122,13 @@ namespace F8Framework.Core
 
         public void OnTermination()
         {
+            StopAll();
+            Tween.Instance.CancelTween(AudioMusic.AudioTween);
+            Tween.Instance.CancelTween(AudioMusicVoice.AudioTween);
+            Tween.Instance.CancelTween(AudioMusicBtnClick.AudioTween);
+            Tween.Instance.CancelTween(AudioMusicUISound.AudioTween);
+            Tween.Instance.CancelTween(AudioMusicAudioEffect.AudioTween);
+            
             Destroy(gameObject);
         }
         
@@ -133,33 +137,38 @@ namespace F8Framework.Core
         // 设置背景音乐播放完成回调
         public void SetMusicComplete(Action callback)
         {
-            _audioMusic.OnComplete = callback;
+            AudioMusic.OnComplete = callback;
         }
-
-        // 播放背景音乐
-        public void PlayMusic(string assetName, Action callback = null, bool loop = false, int priority = 0)
+        
+        /// <summary>
+        /// 播放背景音乐。
+        /// </summary>
+        /// <param name="assetName">资产名。</param>
+        /// <param name="callback">播放完成回调。</param>
+        /// <param name="loop">是否循环。</param>
+        /// <param name="priority">优先级，高的覆盖低的。</param>
+        /// <param name="fadeDuration">淡入持续时间。</param>
+        public void PlayMusic(string assetName, Action callback = null, bool loop = false, int priority = 0, float fadeDuration = 0f)
         {
             if (!_switchMusic)
             {
                 return;
             }
-            if (priority < _audioMusic.Priority)
+            if (priority < AudioMusic.Priority)
             {
                 return;
             }
-            _audioMusic.Load(assetName, callback);
-            _audioMusic.MusicSource.loop = loop;
-            _audioMusic.Priority = priority;
+            AudioMusic.Load(assetName, callback, loop, priority, fadeDuration);
         }
         
         // 设置背景乐播放进度
         public float SetProgressMusic
         {
-            set => _audioMusic.Progress = value;
+            set => AudioMusic.Progress = value;
         }
         
         // 获取背景音乐播放进度
-        public float ProgressMusic => _audioMusic.Progress;
+        public float ProgressMusic => AudioMusic.Progress;
         
         // 获取和设置背景音乐音量
         public float VolumeMusic
@@ -169,7 +178,7 @@ namespace F8Framework.Core
             {
                 _volumeMusic = value;
                 StorageManager.Instance.SetFloat(_volumeMusicKey, value);
-                _audioMusic.MusicSource.volume = value;
+                AudioMusic.MusicSource.volume = value;
             }
         }
         
@@ -189,7 +198,7 @@ namespace F8Framework.Core
                 StorageManager.Instance.SetBool(_switchMusicKey, value);
                 if (!value)
                 {
-                    _audioMusic.MusicSource.Stop();
+                    AudioMusic.MusicSource.Stop();
                 }
             }
         }
@@ -199,33 +208,31 @@ namespace F8Framework.Core
         // 设置人声播放完成回调
         public void SetVoiceComplete(Action callback)
         {
-            _audioMusicVoice.OnComplete = callback;
+            AudioMusicVoice.OnComplete = callback;
         }
 
         // 播放人声
-        public void PlayVoice(string assetName, Action callback = null, bool loop = false, int priority = 0)
+        public void PlayVoice(string assetName, Action callback = null, bool loop = false, int priority = 0, float fadeDuration = 0f)
         {
             if (!_switchVoice)
             {
                 return;
             }
-            if (priority < _audioMusicVoice.Priority)
+            if (priority < AudioMusicVoice.Priority)
             {
                 return;
             }
-            _audioMusicVoice.Load(assetName, callback);
-            _audioMusicVoice.MusicSource.loop = loop;
-            _audioMusicVoice.Priority = priority;
+            AudioMusicVoice.Load(assetName, callback, loop, priority, fadeDuration);
         }
         
         // 设置人声播放进度
         public float SetProgressVoice
         {
-            set => _audioMusicVoice.Progress = value;
+            set => AudioMusicVoice.Progress = value;
         }
         
         // 获取人声播放进度
-        public float ProgressVoice => _audioMusicVoice.Progress;
+        public float ProgressVoice => AudioMusicVoice.Progress;
         
         // 获取和设置人声音量
         public float VolumeVoice
@@ -235,7 +242,7 @@ namespace F8Framework.Core
             {
                 _volumeVoice = value;
                 StorageManager.Instance.SetFloat(_volumeVoiceKey, value);
-                _audioMusicVoice.MusicSource.volume = value;
+                AudioMusicVoice.MusicSource.volume = value;
             }
         }
 
@@ -255,7 +262,7 @@ namespace F8Framework.Core
                 StorageManager.Instance.SetBool(_switchVoiceKey, value);
                 if (!value)
                 {
-                    _audioMusicVoice.MusicSource.Stop();
+                    AudioMusicVoice.MusicSource.Stop();
                 }
             }
         }
@@ -270,9 +277,9 @@ namespace F8Framework.Core
             {
                 _volumeAudioEffect = value;
                 StorageManager.Instance.SetFloat(_volumeAudioEffectKey, value);
-                _audioMusicBtnClick.MusicSource.volume = value;
-                _audioMusicUISound.MusicSource.volume = value;
-                _audioMusicAudioEffect.MusicSource.volume = value;
+                AudioMusicBtnClick.MusicSource.volume = value;
+                AudioMusicUISound.MusicSource.volume = value;
+                AudioMusicAudioEffect.MusicSource.volume = value;
             }
         }
 
@@ -292,9 +299,9 @@ namespace F8Framework.Core
                 StorageManager.Instance.SetBool(_switchAudioEffectKey, value);
                 if (!value)
                 {
-                    _audioMusicBtnClick.MusicSource.Stop();
-                    _audioMusicUISound.MusicSource.Stop();
-                    _audioMusicAudioEffect.MusicSource.Stop();
+                    AudioMusicBtnClick.MusicSource.Stop();
+                    AudioMusicUISound.MusicSource.Stop();
+                    AudioMusicAudioEffect.MusicSource.Stop();
                 }
             }
         }
@@ -304,23 +311,21 @@ namespace F8Framework.Core
         // 设置按钮音效播放完成回调
         public void SetBtnClickComplete(Action callback)
         {
-            _audioMusicBtnClick.OnComplete = callback;
+            AudioMusicBtnClick.OnComplete = callback;
         }
 
         // 播放按钮音效
-        public void PlayBtnClick(string assetName, Action callback = null, bool loop = false, int priority = 0)
+        public void PlayBtnClick(string assetName, Action callback = null, bool loop = false, int priority = 0, float fadeDuration = 0f)
         {
             if (!_switchAudioEffect)
             {
                 return;
             }
-            if (priority < _audioMusicBtnClick.Priority)
+            if (priority < AudioMusicBtnClick.Priority)
             {
                 return;
             }
-            _audioMusicBtnClick.Load(assetName, callback);
-            _audioMusicBtnClick.MusicSource.loop = loop;
-            _audioMusicBtnClick.Priority = priority;
+            AudioMusicBtnClick.Load(assetName, callback, loop, priority, fadeDuration);
         }
         
         /*----------UI音效特效----------*/
@@ -328,23 +333,21 @@ namespace F8Framework.Core
         // 设置UI音效播放完成回调
         public void SetUISoundComplete(Action callback)
         {
-            _audioMusicUISound.OnComplete = callback;
+            AudioMusicUISound.OnComplete = callback;
         }
 
         // 播放UI音效
-        public void PlayUISound(string assetName, Action callback = null, bool loop = false, int priority = 0)
+        public void PlayUISound(string assetName, Action callback = null, bool loop = false, int priority = 0, float fadeDuration = 0f)
         {
             if (!_switchAudioEffect)
             {
                 return;
             }
-            if (priority < _audioMusicUISound.Priority)
+            if (priority < AudioMusicUISound.Priority)
             {
                 return;
             }
-            _audioMusicUISound.Load(assetName, callback);
-            _audioMusicUISound.MusicSource.loop = loop;
-            _audioMusicUISound.Priority = priority;
+            AudioMusicUISound.Load(assetName, callback, loop, priority, fadeDuration);
         }
                 
         /*----------音效特效----------*/
@@ -352,59 +355,81 @@ namespace F8Framework.Core
         // 设置音效特效播放完成回调
         public void SetAudioEffectComplete(Action callback)
         {
-            _audioMusicAudioEffect.OnComplete = callback;
+            AudioMusicAudioEffect.OnComplete = callback;
         }
 
         // 播放音效特效
-        public void PlayAudioEffect(string assetName, Action callback = null, bool loop = false, int priority = 0)
+        public void PlayAudioEffect(string assetName, Action callback = null, bool loop = false, int priority = 0, float fadeDuration = 0f)
         {
             if (!_switchAudioEffect)
             {
                 return;
             }
-            if (priority < _audioMusicAudioEffect.Priority)
+            if (priority < AudioMusicAudioEffect.Priority)
             {
                 return;
             }
-            _audioMusicAudioEffect.Load(assetName, callback);
-            _audioMusicAudioEffect.MusicSource.loop = loop;
-            _audioMusicAudioEffect.Priority = priority;
+            AudioMusicAudioEffect.Load(assetName, callback, loop, priority, fadeDuration);
         }
         
-        /*----------3D音效特效----------*/
-        public void PlayAudioEffect3D(string assetName, bool isRandom = false, Vector3? audioListenerPosition = null, float volume = 1f, Action callback = null)
+        /*----------一次性3D音效特效----------*/
+        /// <summary>
+        /// 播放一次性3D音效特效。
+        /// </summary>
+        /// <param name="assetName">资产名。</param>
+        /// <param name="isRandom">是否随机音量音高。</param>
+        /// <param name="audioPosition">音频播放位置。</param>
+        /// <param name="volume">音量。</param>
+        /// <param name="spatialBlend">2d到3d的比例。</param>
+        /// <param name="maxNum">最大同时播放个数。</param>
+        /// <param name="callback">播放完成回调。</param>
+        public void PlayAudioEffect3D(string assetName, bool isRandom = false, Vector3? audioPosition = null, float volume = 1f, float spatialBlend = 1f,
+            int maxNum = 5, Action callback = null)
         {
             if (!_switchAudioEffect)
             {
                 return ;
             }
-            Vector3 actualPosition = audioListenerPosition.GetValueOrDefault(_transform.position);
+            Vector3 actualPosition = audioPosition.GetValueOrDefault(_transform.position);
             float actualVolume = volume * _volumeAudioEffect;
-            _audioMusicAudioEffect3D.Load(assetName, actualPosition, actualVolume, callback, _audioEffectMixerGroup, isRandom);
+            _audioMusicAudioEffect3D.Load(assetName, actualPosition, actualVolume, spatialBlend, maxNum, callback, _audioEffectMixerGroup, isRandom);
         }
         
         /*----------全局控制----------*/
         public void ResumeAll()
         {
-            _audioMusic.MusicSource.Play();
-            _audioMusicVoice.MusicSource.Play();
-            _audioMusicBtnClick.MusicSource.Play();
-            _audioMusicUISound.MusicSource.Play();
+            AudioMusic.Resume();
+            AudioMusicVoice.Resume();
+            AudioMusicBtnClick.Resume();
+            AudioMusicUISound.Resume();
+            AudioMusicAudioEffect.Resume();
         }
         
         public void PauseAll() {
-            _audioMusic.MusicSource.Pause();
-            _audioMusicVoice.MusicSource.Pause();
-            _audioMusicBtnClick.MusicSource.Pause();
-            _audioMusicUISound.MusicSource.Pause();
+            AudioMusic.Pause();
+            AudioMusicVoice.Pause();
+            AudioMusicBtnClick.Pause();
+            AudioMusicUISound.Pause();
+            AudioMusicAudioEffect.Pause();
         }
         
         public void StopAll()
         {
-            _audioMusic.MusicSource.Stop();
-            _audioMusicVoice.MusicSource.Stop();
-            _audioMusicBtnClick.MusicSource.Stop();
-            _audioMusicUISound.MusicSource.Stop();
+            AudioMusic.Stop();
+            AudioMusicVoice.Stop();
+            AudioMusicBtnClick.Stop();
+            AudioMusicUISound.Stop();
+            AudioMusicAudioEffect.Stop();
+        }
+        
+        public void UnloadAll(bool unloadAllLoadedObjects = true)
+        {
+            AudioMusic.UnloadAll(unloadAllLoadedObjects);
+            AudioMusicVoice.UnloadAll(unloadAllLoadedObjects);
+            AudioMusicBtnClick.UnloadAll(unloadAllLoadedObjects);
+            AudioMusicUISound.UnloadAll(unloadAllLoadedObjects);
+            AudioMusicAudioEffect.UnloadAll(unloadAllLoadedObjects);
+            _audioMusicAudioEffect3D.UnloadAll(unloadAllLoadedObjects);
         }
         
         private float Remap01ToDB(float linearVolume)

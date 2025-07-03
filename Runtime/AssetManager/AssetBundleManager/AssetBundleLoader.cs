@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace F8Framework.Core
 {
@@ -8,22 +9,23 @@ namespace F8Framework.Core
     /// 资产捆绑加载程序。
     /// 管理资产的加载、扩展和卸载行为。
     /// </summary>
-    public class AssetBundleLoader
+    public class AssetBundleLoader : BaseLoader
     {
         private string assetBundlePath = "";
-        private string abName = "";
+        public string abName = "";
         private Hash128 hash128;
         private readonly string keyword = URLSetting.AssetBundlesName + "/" + URLSetting.GetPlatformName() + "/";
-        private List<string> assetPaths = new List<string>();
+        public List<string> assetPaths = new List<string>();
         private AssetBundle assetBundleContent;
+        private Object assetObject;
         private Dictionary<string, Object> assetObjects = new Dictionary<string, Object>();
 
-        private LoaderType loadType;
-        private LoaderType unloadType;
+        public LoaderType loadType;
+        public LoaderType unloadType;
 
-        private LoaderState assetBundleLoadState = LoaderState.NONE;
+        public LoaderState assetBundleLoadState = LoaderState.NONE;
         private LoaderState assetBundleExpandState = LoaderState.NONE;
-        private LoaderState assetBundleUnloadState = LoaderState.NONE;
+        public LoaderState assetBundleUnloadState = LoaderState.NONE;
 
         private AssetBundleCreateRequest assetBundleLoadRequest;
         private DownloadRequest assetBundleDownloadRequest;
@@ -34,9 +36,11 @@ namespace F8Framework.Core
         private event OnExpandFinished onExpandFinishedImpl;
         private event OnUnloadFinished onUnloadFinishedImpl;
 
-        private List<string> parentBundleNames = new List<string>();
+        public List<string> parentBundleNames = new List<string>();
 
-        private Dictionary<string, bool> dependentNames = new Dictionary<string, bool>();
+        public Dictionary<string, bool> dependentNames = new Dictionary<string, bool>();
+        
+        public override bool LoaderSuccess => assetBundleLoadState == LoaderState.FINISHED && assetBundleExpandState == LoaderState.FINISHED;
         
         /// <summary>
         /// 异步资产捆绑包加载完成的回调。
@@ -57,14 +61,14 @@ namespace F8Framework.Core
         /// <summary>
         /// 加载程序的状态枚举。
         /// </summary>
-        public enum LoaderState
+        public enum LoaderState : byte
         {
             NONE,
             WORKING,
             FINISHED
         }
 
-        private enum LoaderType
+        public enum LoaderType : byte
         {
             NONE,
             LOCAL_SYNC,
@@ -84,7 +88,84 @@ namespace F8Framework.Core
             this.abName = GetSubPath(this.assetBundlePath);
             this.hash128 = AssetBundleManager.Instance.GetAssetBundleHash(this.abName);
         }
-
+        
+        public override T GetAssetObject<T>(string subAssetName = null)
+        {
+            if (this.assetBundleContent != null &&
+                this.IsLoadFinished &&
+                this.IsExpandFinished)
+            {
+                if (subAssetName.IsNullOrEmpty())
+                {
+                    return assetObject as T;
+                }
+                else
+                {
+                    if (TryGetAsset(subAssetName, out Object subAsset))
+                    {
+                        return subAsset as T;
+                    }
+                }
+            }
+            return null;
+        }
+        
+        public override Object GetAssetObject(string subAssetName = null)
+        {
+            if (this.assetBundleContent != null &&
+                this.IsLoadFinished &&
+                this.IsExpandFinished)
+            {
+                if (subAssetName.IsNullOrEmpty())
+                {
+                    return assetObject;
+                }
+                else
+                {
+                    if (TryGetAsset(subAssetName, out Object subAsset))
+                    {
+                        return subAsset;
+                    }
+                }
+            }
+            return null;
+        }
+        
+        /// <summary>
+        /// 获取最近加载的单个资产对象。
+        /// </summary>
+        /// <returns></returns>
+        public Object GetAssetObject()
+        {
+            return assetObject;
+        }
+        
+        /// <summary>
+        /// 获取所有已加载的资产对象。
+        /// </summary>
+        /// <returns></returns>
+        public override Dictionary<string, TObject> GetAllAssetObject<TObject>()
+        {
+            Dictionary<string, TObject> allAsset = new Dictionary<string, TObject>();
+            foreach (var item in assetObjects)
+            {
+                if (item.Value is TObject value)
+                {
+                    allAsset[item.Key] = value;
+                }
+            }
+            return allAsset;
+        }
+        
+        /// <summary>
+        /// 获取所有已加载的资产对象。
+        /// </summary>
+        /// <returns></returns>
+        public override Dictionary<string, Object> GetAllAssetObject()
+        {
+            return assetObjects;
+        }
+        
         /// <summary>
         /// 同步加载资产。
         /// </summary>
@@ -167,79 +248,56 @@ namespace F8Framework.Core
                 }
             }
         }
-
-        /// <summary>
-        /// 协程加载资产，
-        /// 这里会比update快一点，有必要的话要等待一帧，获取资源时已经有容错处理。
-        /// 所以展开资产时有机会还未加载完。
-        /// </summary>
-        /// <returns></returns>
-        public IEnumerator LoadAsyncCoroutine()
-        {
-            ClearUnloadData();
-            if (assetBundleLoadState == LoaderState.FINISHED && assetBundleContent == null)
-                assetBundleLoadState = LoaderState.NONE;
-
-            if (assetBundleLoadState == LoaderState.NONE)
-            {
-                assetBundleLoadState = LoaderState.WORKING;
-                if (FileTools.IsLegalHTTPURI(assetBundlePath))
-                {
-                    loadType = LoaderType.REMOTE_ASYNC;
-                    assetBundleDownloadRequest = new DownloadRequest(assetBundlePath, hash128);
-                    if (assetBundleDownloadRequest == null)
-                    {
-                        assetBundleLoadState = LoaderState.FINISHED;
-                        string errMsg = string.Format("找不到远程资产捆绑包 {0} ，请检查", assetBundlePath);
-                        LogF8.LogError(errMsg);
-                    }
-                    else
-                    {
-                        yield return assetBundleDownloadRequest.SendAssetBundleDownloadRequestCoroutine(assetBundlePath, hash128);
-                    }
-                }
-                else
-                {
-                    loadType = LoaderType.LOCAL_ASYNC;
-                    assetBundleLoadRequest = AssetBundle.LoadFromFileAsync(assetBundlePath);
-                    if (assetBundleLoadRequest == null)
-                    {
-                        assetBundleLoadState = LoaderState.FINISHED;
-                        string errMsg = string.Format("找不到本地资产捆绑包 {0} ，请检查", assetBundlePath);
-                        LogF8.LogError(errMsg);
-                    }
-                    else
-                    {
-                        yield return assetBundleLoadRequest;
-                    }
-                }
-            }
-        }
         
         /// <summary>
         /// 同步扩展资产。
         /// 对于Unity中无法扩展的流场景资产包类型，
         /// 此扩展函数将忽略它，并直接将其标记为已展开。
         /// </summary>
-        public virtual void Expand()
+        public virtual void Expand(string assetPath, System.Type assetType, string subAssetName = null, bool isLoadAll = false)
         {
             if (assetBundleContent == null)
             {
                 assetBundleExpandState = LoaderState.NONE;
                 return;
             }
-
-            if (assetBundleExpandState == LoaderState.FINISHED &&
-                assetObjects.Count != assetPaths.Count)
+            
+            if (assetBundleExpandState == LoaderState.FINISHED && !assetObjects.ContainsKey(assetPath))
                 assetBundleExpandState = LoaderState.NONE;
 
+            if (assetBundleExpandState == LoaderState.FINISHED && subAssetName != null && !assetObjects.ContainsKey(subAssetName))
+                assetBundleExpandState = LoaderState.NONE;
+            
+            if (assetBundleExpandState == LoaderState.FINISHED && isLoadAll)
+                assetBundleExpandState = LoaderState.NONE;
+            
             if (assetBundleExpandState == LoaderState.FINISHED)
                 return;
 
             expandCount = 0;
-            foreach (string path in assetPaths)
+            if (isLoadAll)
             {
-                LoadAssetObject(path);
+                for (int i = 0; i < assetPaths.Count; i++)
+                {
+                    if (assetPaths[i].Equals(assetPath))
+                    {
+                        LoadAssetObject(assetPaths[i], assetType, subAssetName, isLoadAll);
+                    }
+                    else
+                    {
+                        LoadAssetObject(assetPaths[i], null, subAssetName, isLoadAll);
+                    }
+                }
+            }
+            else
+            {
+                for (int i = 0; i < assetPaths.Count; i++)
+                {
+                    if (assetPaths[i].Equals(assetPath))
+                    {
+                        LoadAssetObject(assetPaths[i], assetType, subAssetName, isLoadAll);
+                    }
+                }
             }
             expandCount = assetPaths.Count;
 
@@ -252,16 +310,21 @@ namespace F8Framework.Core
         /// 对于无法在Unity中展开的流场景资产束类型，
         /// 此扩展函数将忽略它，并直接将其标记为已扩展。
         /// </summary>
-        public virtual void ExpandAsync(OnExpandFinished callback = null)
+        public virtual void ExpandAsync(string assetPath, System.Type assetType, string subAssetName = null, OnExpandFinished callback = null, bool isLoadAll = false)
         {
             if (assetBundleContent == null)
             {
                 assetBundleExpandState = LoaderState.NONE;
                 return;
             }
+            
+            if (assetBundleExpandState == LoaderState.FINISHED && !assetObjects.ContainsKey(assetPath))
+                assetBundleExpandState = LoaderState.NONE;
 
-            if (assetBundleExpandState == LoaderState.FINISHED &&
-                assetObjects.Count != assetPaths.Count)
+            if (assetBundleExpandState == LoaderState.FINISHED && subAssetName != null && !assetObjects.ContainsKey(subAssetName))
+                assetBundleExpandState = LoaderState.NONE;
+            
+            if (assetBundleExpandState == LoaderState.FINISHED && isLoadAll)
                 assetBundleExpandState = LoaderState.NONE;
             
             onExpandFinished += callback;
@@ -270,9 +333,29 @@ namespace F8Framework.Core
             {
                 expandCount = 0;
                 assetBundleExpandState = LoaderState.WORKING;
-                foreach (string path in assetPaths)
+                if (isLoadAll)
                 {
-                    LoadAssetObjectAsync(path, OnOneExpandCallBack);
+                    for (int i = 0; i < assetPaths.Count; i++)
+                    {
+                        if (assetPaths[i].Equals(assetPath))
+                        {
+                            LoadAssetObjectAsync(assetPaths[i], assetType, subAssetName, OnExpandCallBack, isLoadAll);
+                        }
+                        else
+                        {
+                            LoadAssetObjectAsync(assetPaths[i], null, subAssetName, OnExpandCallBack, isLoadAll);
+                        }
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < assetPaths.Count; i++)
+                    {
+                        if (assetPaths[i].Equals(assetPath))
+                        {
+                            LoadAssetObjectAsync(assetPaths[i], assetType, subAssetName, OnOneExpandCallBack, isLoadAll);
+                        }
+                    }
                 }
             }
         }
@@ -283,7 +366,7 @@ namespace F8Framework.Core
         /// 有机会assetBundle还未加载完，所以就没有展开。
         /// </summary>
         /// <returns></returns>
-        public IEnumerator ExpandAsyncCoroutine()
+        public IEnumerator ExpandAsyncCoroutine(string assetPath, System.Type assetType, string subAssetName = null, bool isLoadAll = false)
         {
             if (assetBundleContent == null)
             {
@@ -291,17 +374,48 @@ namespace F8Framework.Core
                 yield break;
             }
             
-            if (assetBundleExpandState == LoaderState.FINISHED && assetObjects.Count != assetPaths.Count)
+            if (assetBundleExpandState == LoaderState.FINISHED && !assetObjects.ContainsKey(assetPath))
+                assetBundleExpandState = LoaderState.NONE;
+
+            if (assetBundleExpandState == LoaderState.FINISHED && subAssetName != null && !assetObjects.ContainsKey(subAssetName))
+                assetBundleExpandState = LoaderState.NONE;
+            
+            if (assetBundleExpandState == LoaderState.FINISHED && isLoadAll)
                 assetBundleExpandState = LoaderState.NONE;
 
             if (assetBundleExpandState == LoaderState.NONE)
             {
                 expandCount = 0;
                 assetBundleExpandState = LoaderState.WORKING;
-                foreach (string path in assetPaths)
+                if (isLoadAll)
                 {
-                    yield return LoadAssetObjectAsyncCoroutine(path);
+                    for (int i = 0; i < assetPaths.Count; i++)
+                    {
+                        if (assetPaths[i].Equals(assetPath))
+                        {
+                            LoadAssetObjectAsync(assetPaths[i], assetType, subAssetName, OnExpandCallBack, isLoadAll);
+                        }
+                        else
+                        {
+                            LoadAssetObjectAsync(assetPaths[i], null, subAssetName, OnExpandCallBack, isLoadAll);
+                        }
+                    }
                 }
+                else
+                {
+                    for (int i = 0; i < assetPaths.Count; i++)
+                    {
+                        if (assetPaths[i].Equals(assetPath))
+                        {
+                            LoadAssetObjectAsync(assetPaths[i], assetType, subAssetName, OnOneExpandCallBack, isLoadAll);
+                        }
+                    }
+                }
+                yield return new WaitUntil(() => ExpandProgress >= 1f);
+            }
+            else if (assetBundleExpandState == LoaderState.WORKING)
+            {
+                yield return new WaitUntil(() => ExpandProgress >= 1f);
             }
         }
         
@@ -314,15 +428,15 @@ namespace F8Framework.Core
         /// </param>
         public virtual void Unload(bool unloadAllLoadedObjects = false)
         {
+            unloadType = LoaderType.LOCAL_SYNC;
             if (assetBundleContent != null)
             {
                 assetBundleContent.Unload(unloadAllLoadedObjects);
-                if (unloadAllLoadedObjects)
-                {
-                    ClearLoadedData();
-                }
             }
-
+            if (unloadAllLoadedObjects)
+            {
+                ClearLoadedData();
+            }
             assetBundleUnloadState = LoaderState.FINISHED;
         }
 
@@ -349,7 +463,7 @@ namespace F8Framework.Core
                 ClearLoadedData();
             }
         }
-
+        
         /// <summary>
         /// 尝试获取资产对象。
         /// </summary>
@@ -370,32 +484,11 @@ namespace F8Framework.Core
         /// <summary>
         /// 按资源对象名称加载资源对象。
         /// </summary>
-        /// <typeparam name="T">资产对象的目标对象类型。</typeparam>
-        /// <param name="assetPath">资源对象的路径。</param>
-        /// <returns>找到资产对象。</returns>
-        public T LoadAssetObject<T>(string assetPath)
-            where T : Object
-        {
-            if (assetBundleContent == null)
-                return null;
-
-            // 流化场景资产包不需要扩展，
-            // 但必须通过UnityEngine进行访问。场景管理。场景管理器。
-            if (assetBundleContent.isStreamedSceneAssetBundle)
-                return null;
-
-            T t = assetBundleContent.LoadAsset<T>(assetPath);
-            SetAssetObject(assetPath, t);
-            return t;
-        }
-
-        /// <summary>
-        /// 按资源对象名称加载资源对象。
-        /// </summary>
         /// <param name="assetPath">资源对象的路径。</param>
         /// <param name="assetType">资产对象的目标对象类型。</param>
+        /// <param name="subAssetName">子资产名称。</param>
         /// <returns>找到资产对象。</returns>
-        public Object LoadAssetObject(string assetPath, System.Type assetType)
+        public Object LoadAssetObject(string assetPath, System.Type assetType, string subAssetName = null, bool isLoadAll = false)
         {
             if (assetBundleContent == null)
                 return null;
@@ -405,86 +498,77 @@ namespace F8Framework.Core
             if (assetBundleContent.isStreamedSceneAssetBundle)
                 return null;
 
-            Object o = assetBundleContent.LoadAsset(assetPath, assetType);
-            SetAssetObject(assetPath, o);
-            if (assetType.IsAssignableFrom(o.GetType()))
+            Object o = null;
+            if (isLoadAll)
+            {
+                var objects = assetType == null ? 
+                    assetBundleContent.LoadAllAssets() :
+                    assetBundleContent.LoadAllAssets(assetType);
+                foreach (var obj in objects)
+                {
+                    SetAssetObject(obj.name, obj);
+                    if (obj.name.Equals(subAssetName))
+                    {
+                        o = obj;
+                    }
+                }
+            }
+            else
+            {
+                if (subAssetName.IsNullOrEmpty())
+                {
+                    o = assetType == null ? 
+                        assetBundleContent.LoadAsset(assetPath) :
+                        assetBundleContent.LoadAsset(assetPath, assetType);
+                    SetAssetObject(assetPath, o);
+                }
+                else
+                {
+                    var objects = assetType == null ? 
+                        assetBundleContent.LoadAssetWithSubAssets(assetPath) :
+                        assetBundleContent.LoadAssetWithSubAssets(assetPath, assetType);
+                    foreach (var obj in objects)
+                    {
+                        SetAssetObject(obj.name, obj);
+                        if (obj.name.Equals(subAssetName))
+                        {
+                            o = obj;
+                        }
+                    }
+                }
+            }
+            assetObject = o;
+            
+            if (assetType == null)
             {
                 return o;
             }
             else
             {
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// 按资源对象名称加载资源对象。
-        /// </summary>
-        /// <param name="assetPath">资源对象的路径。</param>
-        /// <returns>找到资产对象。</returns>
-        public Object LoadAssetObject(string assetPath)
-        {
-            if (assetBundleContent == null)
-                return null;
-
-            // 流化场景资产包不需要扩展，
-            // 但必须通过UnityEngine进行访问。场景管理。场景管理器。
-            if (assetBundleContent.isStreamedSceneAssetBundle)
-                return null;
-
-            Object o = assetBundleContent.LoadAsset(assetPath);
-            SetAssetObject(assetPath, o);
-            return o;
-        }
-
-        /// <summary>
-        /// 通过资产捆绑路径异步加载。
-        /// </summary>
-        /// <typeparam name="T">资产对象的目标对象类型。</typeparam>
-        /// <param name="assetPath">资源对象的路径。</param>
-        /// <param name="callback">异步加载完成的回调。</param>
-        public void LoadAssetObjectAsync<T>(
-            string assetPath,
-            OnAssetObject<T> callback = null)
-            where T : Object
-        {
-            // 流化场景资产包不需要扩展，
-            // 但必须通过UnityEngine进行访问。场景管理。场景管理器。
-            if (assetBundleContent == null ||
-                assetBundleContent.isStreamedSceneAssetBundle)
-            {
-                End();
-                return;
-            }
-
-            AssetBundleRequest rq = assetBundleContent.LoadAssetAsync<T>(assetPath);
-            rq.completed +=
-                ao =>
+                if (assetType.IsAssignableFrom(o.GetType()))
                 {
-                    Object o = rq.asset;
-                    SetAssetObject(assetPath, o);
-
-                    T t = o as T;
-                    End(t);
-                };
-
-            void End(T o = null)
-            {
-                if (callback != null)
-                    callback(o);
+                    return o;
+                }
+                else
+                {
+                    LogF8.LogError("与输入的资产类型不一致：" + assetPath);
+                    return null;
+                }
             }
         }
-
+        
         /// <summary>
         /// 通过资产捆绑路径异步加载。
         /// </summary>
         /// <param name="assetPath">资源对象的路径。</param>
         /// <param name="assetType">资产对象的目标对象类型。</param>
+        /// <param name="subAssetName">子资产名称。</param>
         /// <param name="callback">异步加载完成的回调。</param>
-        public void LoadAssetObjectAsync(
-            string assetPath,
+        public void LoadAssetObjectAsync(string assetPath,
             System.Type assetType,
-            OnAssetObject<Object> callback = null)
+            string subAssetName = null,
+            OnAssetObject<Object> callback = null,
+            bool isLoadAll = false)
         {
             // 流化场景资产包不需要扩展，
             // 但必须通过UnityEngine进行访问。场景管理。场景管理器。
@@ -495,76 +579,67 @@ namespace F8Framework.Core
                 return;
             }
 
-            AssetBundleRequest rq = assetBundleContent.LoadAssetAsync(assetPath, assetType);
+            AssetBundleRequest rq;
+            if (isLoadAll)
+            {
+                rq = assetType == null ? 
+                    assetBundleContent.LoadAllAssetsAsync() :
+                    assetBundleContent.LoadAllAssetsAsync(assetType);
+            }
+            else
+            {
+                if (subAssetName.IsNullOrEmpty())
+                {
+                    rq = assetType == null ? 
+                        assetBundleContent.LoadAssetAsync(assetPath) :
+                        assetBundleContent.LoadAssetAsync(assetPath, assetType);
+                }
+                else
+                {
+                    rq = assetType == null ? 
+                        assetBundleContent.LoadAssetWithSubAssetsAsync(assetPath) :
+                        assetBundleContent.LoadAssetWithSubAssetsAsync(assetPath, assetType);
+                }
+            }
+            
             rq.completed +=
                 ao => {
                     Object o = rq.asset;
                     SetAssetObject(assetPath, o);
-
-                    if (assetType.IsAssignableFrom(o.GetType()))
+                    
+                    foreach (var obj in rq.allAssets)
+                    {
+                        SetAssetObject(obj.name, obj);
+                        if (obj.name.Equals(subAssetName))
+                        {
+                            o = obj;
+                        }
+                    }
+                    
+                    if (assetType == null)
                     {
                         End(o);
                     }
                     else
                     {
-                        End();
+                        if (assetType.IsAssignableFrom(o.GetType()))
+                        {
+                            End(o);
+                        }
+                        else
+                        {
+                            LogF8.LogError("与输入的资产类型不一致：" + assetPath);
+                            End();
+                        }
                     }
                 };
 
             void End(Object o = null)
             {
+                assetObject = o;
                 if (callback != null)
                     callback(o);
             }
-        }
-
-        /// <summary>
-        /// 通过资产捆绑路径异步加载。
-        /// </summary>
-        /// <param name="assetPath">资源对象的路径。</param>
-        /// <param name="callback">异步加载完成的回调。</param>
-        public void LoadAssetObjectAsync(
-            string assetPath,
-            OnAssetObject<Object> callback = null)
-        {
-            // 流化场景资产包不需要扩展，
-            // 但必须通过UnityEngine进行访问。场景管理。场景管理器。
-            if (!assetBundleContent||
-                assetBundleContent.isStreamedSceneAssetBundle)
-            {
-                End();
-                return;
-            }
-
-            AssetBundleRequest rq = assetBundleContent.LoadAssetAsync(assetPath);
-            rq.completed +=
-                ao => {
-                    Object o = rq.asset;
-                    SetAssetObject(assetPath, o);
-
-                    End(o);
-                };
-
-            void End(Object o = null)
-            {
-                callback?.Invoke(o);
-            }
-        }
-
-        public IEnumerator LoadAssetObjectAsyncCoroutine(string assetPath)
-        {
-            // 流化场景资产包不需要扩展，
-            // 但必须通过UnityEngine进行访问。场景管理。场景管理器。
-            if (!assetBundleContent || assetBundleContent.isStreamedSceneAssetBundle)
-            {
-                yield break;
-            }
-            
-            AssetBundleRequest rq = assetBundleContent.LoadAssetAsync(assetPath);
-            yield return rq;
-
-            Object o = rq.asset;
-            SetAssetObject(assetPath, o);
         }
         
         /// <summary>
@@ -679,6 +754,7 @@ namespace F8Framework.Core
             onExpandFinishedImpl = null;
             onUnloadFinishedImpl = null;
 
+            assetObject = null;
             assetObjects.Clear();
             parentBundleNames.Clear();
             dependentNames.Clear();
@@ -799,6 +875,7 @@ namespace F8Framework.Core
             assetBundleLoadState = LoaderState.NONE;
             assetBundleExpandState = LoaderState.NONE;
             assetBundleContent = null;
+            assetObject = null;
             assetObjects.Clear();
             assetBundleLoadRequest = null;
             assetBundleDownloadRequest?.Dispose();
@@ -823,7 +900,26 @@ namespace F8Framework.Core
         /// 当一个展开回调时调用。
         /// </summary>
         /// <param name="o">传入的对象。</param>
-        private void OnOneExpandCallBack(Object o)
+        private void OnOneExpandCallBack(Object o = null)
+        {
+            ++expandCount;
+            if (expandCount == 1)
+            {
+                assetBundleExpandState = LoaderState.FINISHED;
+                if (onExpandFinishedImpl != null)
+                {
+                    onExpandFinishedImpl();
+                    onExpandFinishedImpl = null;
+                    base.OnComplete();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 当一个展开回调时调用。
+        /// </summary>
+        /// <param name="o">传入的对象。</param>
+        private void OnExpandCallBack(Object o = null)
         {
             ++expandCount;
             if (expandCount == assetPaths.Count)
@@ -833,10 +929,11 @@ namespace F8Framework.Core
                 {
                     onExpandFinishedImpl();
                     onExpandFinishedImpl = null;
+                    base.OnComplete();
                 }
             }
         }
-
+        
         /// <summary>
         /// 获取资产路径列表。
         /// </summary>
@@ -846,6 +943,15 @@ namespace F8Framework.Core
             if (assetBundleContent)
             {
                 assetPaths.Clear();
+                // 流化场景资产包不需要加载AssetObject
+                if (assetBundleContent.isStreamedSceneAssetBundle)
+                {
+                    foreach (var assetName in assetBundleContent.GetAllScenePaths()) // 获取得到是大写和小写并存：Assets/AssetBundles/Scene/scene.unity
+                    {
+                        assetPaths.Add(assetName.ToLower());
+                    }
+                    return;
+                }
                 foreach (var assetName in assetBundleContent.GetAllAssetNames()) // 获取得到是小写：assets/assetbundles/prefabs/cube.prefab
                 {
                     assetPaths.Add(assetName);
@@ -875,21 +981,14 @@ namespace F8Framework.Core
         /// <param name="obj">要设置的对象。</param>
         private void SetAssetObject(string assetPath, Object obj)
         {
-            // assetPath是小写
             if (assetPath == null ||
                 obj == null)
             {
+                LogF8.LogError("加载资产对象Object为空，请检查类型和路径：" + assetPath);
                 return;
             }
 
-            if (assetObjects.ContainsKey(assetPath))
-            {
-                assetObjects[assetPath] = obj;
-            }
-            else
-            {
-                assetObjects.Add(assetPath, obj);
-            }
+            assetObjects[assetPath] = obj;
         }
 
         /// <summary>
@@ -976,7 +1075,7 @@ namespace F8Framework.Core
         }
 
         /// <summary>
-        /// 扩大进度。
+        /// 展开进度。
         /// 值的范围从0到1。
         /// </summary>
         public float ExpandProgress

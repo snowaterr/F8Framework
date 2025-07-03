@@ -24,8 +24,7 @@ namespace F8Framework.Core.Editor
     {
         public const string CODE_NAMESPACE = "F8Framework.F8ExcelDataClass"; //由表生成的数据类型均在此命名空间内
 
-        public const string
-            BinDataFolder = "/AssetBundles/Config/BinConfigData"; //序列化的数据文件都会放在此文件夹内,此文件夹位于Resources文件夹下用于读取数据
+        public const string BinDataFolder = "/AssetBundles/Config/BinConfigData"; //序列化的数据文件都会放在此文件夹内,此文件夹位于AssetBundles或Resources文件夹下用于读取数据
         public const string DataManagerFolder = "/F8Framework/ConfigData/F8DataManager"; //Data代码路径
         public const string DataManagerName = "F8DataManager.cs"; //Data代码脚本名
         public const string ExcelPath = "/StreamingAssets/config"; //需要导表的目录
@@ -85,24 +84,28 @@ namespace F8Framework.Core.Editor
 
             // 将内容写入.asmdef文件
             FileTools.SafeWriteAllText(asmrefPath, asmdefContent);
+            LogF8.LogConfig("创建.asmdef文件 " + Application.dataPath + DLLFolder + "/<color=#FF9E59>" + CODE_NAMESPACE + ".asmdef" + "</color>");
+        }
+
+        // Jenkins导表专用
+        public static void JenkinsLoadAllExcelData()
+        {
+            string[] args = Environment.GetCommandLineArgs();
+            string ExcelPath = BuildPkgTool.GetArgValue(args, "ExcelPath-");
+            F8EditorPrefs.SetString("ExcelPath", ExcelPath);
+            LoadAllExcelData();
         }
         
         public static void LoadAllExcelData()
         {
-            if (EditorPrefs.GetString("ExcelPath", default).IsNullOrEmpty())
+            if (F8EditorPrefs.GetString("ExcelPath", default).IsNullOrEmpty())
             {
                 FileTools.CheckDirAndCreateWhenNeeded(Application.dataPath + ExcelPath);
-                string tempExcelPath = EditorUtility.OpenFolderPanel("设置Excel存放目录", Application.dataPath + ExcelPath, "");
-                if (tempExcelPath.IsNullOrEmpty())
-                {
-                    tempExcelPath = Application.dataPath + ExcelPath;
-                }
-                EditorPrefs.SetString("ExcelPath", tempExcelPath);
+                string tempExcelPath = Application.dataPath + ExcelPath;
+                F8EditorPrefs.SetString("ExcelPath", tempExcelPath);
                 LogF8.LogConfig("首次启动，设置Excel存放目录：" + tempExcelPath + " （如要更改请到----上方菜单栏->开发工具->设置Excel存放目录）");
-                LoadAllExcelData();
-                return;
             }
-            string lastExcelPath = EditorPrefs.GetString("ExcelPath", default) ?? Application.dataPath + ExcelPath;
+            string lastExcelPath = F8EditorPrefs.GetString("ExcelPath", default) ?? Application.dataPath + ExcelPath;
             
             string INPUT_PATH = lastExcelPath;
 
@@ -114,15 +117,15 @@ namespace F8Framework.Core.Editor
             {
                 FileTools.SafeCopyFile(
                     FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 3)) +
-                    "/Tests/ExcelTool/StreamingAssets_config/Demo工作表.xlsx",
-                    lastExcelPath + "/Demo工作表.xlsx");
+                    "/Runtime/ExcelTool/StreamingAssets_config/DemoWorkSheet.xlsx",
+                    lastExcelPath + "/DemoWorkSheet.xlsx");
                 FileTools.SafeCopyFile(
                     FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 3)) +
-                    "/Tests/Localization/StreamingAssets_config/本地化.xlsx",
-                    lastExcelPath + "/本地化.xlsx");
+                    "/Runtime/Localization/StreamingAssets_config/Localization.xlsx",
+                    lastExcelPath + "/Localization.xlsx");
                 files = Directory.GetFiles(INPUT_PATH, "*.*", SearchOption.AllDirectories)
                     .Where(s => s.EndsWith(".xls") || s.EndsWith(".xlsx")).ToArray();
-                LogF8.LogError("暂无可以导入的数据表！自动为你创建：【Demo工作表.xlsx / 本地化.xlsx】两个表格！" + lastExcelPath + " 目录");
+                LogF8.LogError("暂无可以导入的数据表！自动为你创建：【DemoWorkSheet.xlsx / Localization.xlsx】两个表格！" + lastExcelPath + " 目录");
             }
 
             string F8ExcelDataClassPathDLL = FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 3)) + "/ConfigData/" + CODE_NAMESPACE + ".asmdef";
@@ -183,27 +186,59 @@ namespace F8Framework.Core.Editor
                 EditorUtility.DisplayDialog("注意！！！", "\n暂无可以导入的数据表！", "确定");
                 throw new Exception("暂无可以导入的数据表！");
             }
-            //编译代码,生成包含所有数据表内数据类型的dll
-            GenerateCodeFiles(codeList);
-            ScriptGenerator.CreateDataManager(codeList);
-            AssetDatabase.SaveAssets();
+            
+            string F8ExcelDataClassPath = FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 3)) + "/ConfigData/F8ExcelDataClass";
+            FileTools.SafeClearDir(F8ExcelDataClassPath);
+            LogF8.LogConfig("清空目录：" + F8ExcelDataClassPath);
+            FileTools.CheckDirAndCreateWhenNeeded(F8ExcelDataClassPath);
             AssetDatabase.Refresh();
+            // 编译代码,生成包含所有数据表内数据类型的dll
+            GenerateCodeFiles(codeList);
+            
+            string F8DataManagerPath = FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 3)) + "/ConfigData/F8DataManager";
+            FileTools.SafeClearDir(F8DataManagerPath);
+            LogF8.LogConfig("清空目录：" + F8DataManagerPath);
+            FileTools.CheckDirAndCreateWhenNeeded(F8DataManagerPath);
+            AssetDatabase.Refresh();
+            // 生成F8DataManager.cs
+            ScriptGenerator.CreateDataManager(codeList);
+            
+            string F8ExcelDataClassPathDLL = FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 3)) + "/ConfigData/" + CODE_NAMESPACE + ".asmdef";
+            FileTools.SafeDeleteFile(F8ExcelDataClassPathDLL);
+            LogF8.LogConfig("删除文件：" + F8ExcelDataClassPathDLL);
+            FileTools.SafeDeleteFile(F8ExcelDataClassPathDLL + ".meta");
+            FileTools.SafeDeleteFile(Application.dataPath + DataManagerFolder + "/F8DataManager.asmref");
+            CreateAsmdefFile();
+            AssetDatabase.Refresh();
+            
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
             // 等待脚本编译完成
             CompilationPipeline.compilationFinished += (object s) =>
             {
-                EditorPrefs.SetBool("compilationFinished", true);
+                F8EditorPrefs.SetBool("compilationFinished", true);
             };
         }
-        
+
+        // Jenkins导表专用
+        public static void JenkinsAllScriptsReloaded()
+        {
+            string[] args = Environment.GetCommandLineArgs();
+            string ExcelPath = BuildPkgTool.GetArgValue(args, "ExcelPath-");
+            F8EditorPrefs.SetString("ExcelPath", ExcelPath);
+            F8EditorPrefs.SetBool("compilationFinished", true);
+            AllScriptsReloaded();
+        }
+
         // 等待脚本编译完成
         [UnityEditor.Callbacks.DidReloadScripts]
         private static void AllScriptsReloaded()
         {
-            if (EditorPrefs.GetBool("compilationFinished", false) == false)
+            if (F8EditorPrefs.GetBool("compilationFinished", false) == false)
             {
                 return;
             }
-            EditorPrefs.SetBool("compilationFinished", false);
+            F8EditorPrefs.SetBool("compilationFinished", false);
             LogF8.LogConfig("<color=#FF9E59>导表后脚本编译完成!</color>");
             Assembly assembly = Util.Assembly.GetAssembly(CODE_NAMESPACE);
             //准备序列化数据
@@ -211,7 +246,7 @@ namespace F8Framework.Core.Editor
             if (Directory.Exists(BinDataPath)) Directory.Delete(BinDataPath, true); //删除旧的数据文件
             Directory.CreateDirectory(BinDataPath);
             
-            string lastExcelPath = EditorPrefs.GetString("ExcelPath", default) ?? Application.dataPath + ExcelPath;
+            string lastExcelPath = F8EditorPrefs.GetString("ExcelPath", default) ?? Application.dataPath + ExcelPath;
             
             string INPUT_PATH = lastExcelPath;
             var files = Directory.GetFiles(INPUT_PATH, "*.*", SearchOption.AllDirectories)
@@ -252,49 +287,49 @@ namespace F8Framework.Core.Editor
             UnityEditor.EditorApplication.delayCall += () =>
             {
                 AssetDatabase.Refresh();
-                if (EditorPrefs.GetBool("compilationFinishedHotUpdateDll", false) == true)
+                if (F8EditorPrefs.GetBool("compilationFinishedHotUpdateDll", false) == true)
                 {
                     F8Helper.GenerateCopyHotUpdateDll();
                 }
-                EditorPrefs.SetBool("compilationFinishedHotUpdateDll", false);
+                F8EditorPrefs.SetBool("compilationFinishedHotUpdateDll", false);
             };
             
             UnityEditor.EditorApplication.delayCall += () =>
             {
                 AssetDatabase.Refresh();
-                if (EditorPrefs.GetBool("compilationFinishedBuildAB", false) == true)
+                if (F8EditorPrefs.GetBool("compilationFinishedBuildAB", false) == true)
                 {
                     ABBuildTool.BuildAllAB();
                 }
-                EditorPrefs.SetBool("compilationFinishedBuildAB", false);
+                F8EditorPrefs.SetBool("compilationFinishedBuildAB", false);
             };
             
             UnityEditor.EditorApplication.delayCall += () =>
             {
-                if (EditorPrefs.GetBool("compilationFinishedBuildPkg", false) == true)
+                if (F8EditorPrefs.GetBool("compilationFinishedBuildPkg", false) == true)
                 {
                     BuildPkgTool.Build();
                     BuildPkgTool.WriteAssetVersion();
                 }
-                EditorPrefs.SetBool("compilationFinishedBuildPkg", false);
+                F8EditorPrefs.SetBool("compilationFinishedBuildPkg", false);
             };
             
             UnityEditor.EditorApplication.delayCall += () =>
             {
-                if (EditorPrefs.GetBool("compilationFinishedBuildRun", false) == true)
+                if (F8EditorPrefs.GetBool("compilationFinishedBuildRun", false) == true)
                 {
                     BuildPkgTool.RunExportedGame();
                 }
-                EditorPrefs.SetBool("compilationFinishedBuildRun", false);
+                F8EditorPrefs.SetBool("compilationFinishedBuildRun", false);
             };
             
             UnityEditor.EditorApplication.delayCall += () =>
             {
-                if (EditorPrefs.GetBool("compilationFinishedBuildUpdate", false) == true)
+                if (F8EditorPrefs.GetBool("compilationFinishedBuildUpdate", false) == true)
                 {
                     BuildPkgTool.BuildUpdate();
                 }
-                EditorPrefs.SetBool("compilationFinishedBuildUpdate", false);
+                F8EditorPrefs.SetBool("compilationFinishedBuildUpdate", false);
             };
         }
         
@@ -470,7 +505,15 @@ namespace F8Framework.Core.Editor
             foreach (var kvp in codeList)
             {
                 string filePath = $"{path}/{kvp.Key}.cs";
-                File.WriteAllText(filePath, kvp.Value.Generate());
+                try
+                {
+                    File.WriteAllText(filePath, kvp.Value.Generate());
+                }
+                catch (Exception e)
+                {
+                    throw new Exception("表格生成错误，修改后重试F8：" + kvp.Key + ".cs" + "\n" + e.Message);
+                }
+                
                 LogF8.LogConfig($"已生成代码 " + path + "/<color=#FF9E59>" + kvp.Key + ".cs</color>");
             }
         }
@@ -523,33 +566,42 @@ namespace F8Framework.Core.Editor
 
                 dict.GetType().GetMethod("Add").Invoke(dict, new System.Object[] { id, t });
             }
-#if UNITY_WEBGL
-            // 序列化对象
-            string json = Util.LitJson.ToJson(container);
-            // 写入到文件
-            string filePath = BinDataPath + "/" + container.GetType().Name + ".json";
-            FileTools.SafeWriteAllText(filePath, json);
-            // 记录日志
-            LogF8.LogConfig("已序列化 " + BinDataPath + "/<color=#FFFF00>" + container.GetType().Name + ".json</color>");
-#else
-            try
-            {
-                IFormatter formatter = new BinaryFormatter();
-                string filePath = Path.Combine(BinDataPath, container.GetType().Name + ".bytes");
 
-                // 使用 using 语句确保流被正确关闭
-                using (Stream stream = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None))
-                {
-                    formatter.Serialize(stream, container);
-                }
-
-                LogF8.LogConfig($"已序列化 {BinDataPath}/<color=#FFFF00>{container.GetType().Name}.bytes</color>");
-            }
-            catch (Exception ex)
+// #if UNITY_WEBGL
+			try
             {
-                Debug.LogError($"序列化失败: {ex.Message}");
+                // 序列化对象
+                string json = Util.LitJson.ToJson(container);
+                // 写入到文件
+                string filePath = BinDataPath + "/" + container.GetType().Name + ".json";
+                FileTools.SafeWriteAllText(filePath, json);
+                // 记录日志
+                LogF8.LogConfig("已序列化 " + BinDataPath + "/<color=#FFFF00>" + container.GetType().Name + ".json</color>");
             }
-#endif
+            catch (Exception e)
+            {
+                LogF8.LogError($"序列化失败: {e.Message}");
+            }
+// #else
+//             // 暂不使用BinaryFormatter序列化
+//             try
+//             {
+//                 IFormatter formatter = new BinaryFormatter();
+//                 string filePath = Path.Combine(BinDataPath, container.GetType().Name + ".bytes");
+//             
+//                 // 使用 using 语句确保流被正确关闭
+//                 using (Stream stream = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None))
+//                 {
+//                     formatter.Serialize(stream, container);
+//                 }
+//             
+//                 LogF8.LogConfig($"已序列化 {BinDataPath}/<color=#FFFF00>{container.GetType().Name}.bytes</color>");
+//             }
+//             catch (Exception e)
+//             {
+//                 LogF8.LogError($"序列化失败: {e.Message}");
+//             }
+// #endif
         }
     }
 }

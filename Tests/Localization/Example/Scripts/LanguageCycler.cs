@@ -8,6 +8,8 @@ namespace F8Framework.Tests
 {
 	public class LanguageCycler : MonoBehaviour
 	{
+		public GameObject StoryCanvas;
+		public GameObject UICanvas;
 		IEnumerator Start()
 		{
 			// 初始化模块中心
@@ -26,16 +28,23 @@ namespace F8Framework.Tests
 			FF8.FSM = ModuleCenter.CreateModule<FSMManager>();
 			FF8.GameObjectPool = ModuleCenter.CreateModule<GameObjectPool>();
 			FF8.Asset = ModuleCenter.CreateModule<AssetManager>();
-			// yield return AssetBundleManager.Instance.LoadAssetBundleManifest(); // WebGL专用
+#if UNITY_WEBGL
+            yield return AssetBundleManager.Instance.LoadAssetBundleManifest(); // WebGL专用，如果游戏中没有使用任何AB包加载资源，可以删除此方法的调用！
+#endif
 			FF8.Config = ModuleCenter.CreateModule<F8DataManager>();
 			FF8.Audio = ModuleCenter.CreateModule<AudioManager>();
 			FF8.Tween = ModuleCenter.CreateModule<Tween>();
 			FF8.UI = ModuleCenter.CreateModule<UIManager>();
-			// yield return F8DataManager.Instance.LoadLocalizedStringsIEnumerator(); // WebGL专用
+#if UNITY_WEBGL
+            yield return F8DataManager.Instance.LoadLocalizedStringsIEnumerator(); // WebGL专用
+#endif
 			FF8.Local = ModuleCenter.CreateModule<Localization>();
 			FF8.SDK = ModuleCenter.CreateModule<SDKManager>();
 			FF8.Download = ModuleCenter.CreateModule<DownloadManager>();
 			FF8.LogWriter = ModuleCenter.CreateModule<F8LogWriter>();
+			
+			StoryCanvas.SetActive(true);
+			UICanvas.SetActive(true);
 			yield break;
 		}
 

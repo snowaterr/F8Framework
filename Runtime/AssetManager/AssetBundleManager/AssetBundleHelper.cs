@@ -55,7 +55,7 @@ namespace F8Framework.Core
         /// <summary>
         /// 源类型的枚举。
         /// </summary>
-        public enum SourceType
+        public enum SourceType : byte
         {
             NONE,
             STREAMING_ASSETS,
@@ -91,6 +91,7 @@ namespace F8Framework.Core
                     assetBundlePath = GetRemoteAddress();
                     break;
                 default:
+                    LogF8.LogError("AssetBundle的源类型不能为空");
                     return null;
             }
             

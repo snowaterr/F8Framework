@@ -7,7 +7,7 @@ using UnityEngine.UI;
 
 namespace F8Framework.Core
 {
-    public enum LayerType
+    public enum LayerType : byte
     {
         Game,
         UI,
@@ -46,6 +46,19 @@ namespace F8Framework.Core
         
         // 将所有的层放入一个字典中
         private Dictionary<LayerType, LayerUI> _layers;
+
+        // 使用枚举作为参数
+        public void Initialize<T>(Dictionary<T, UIConfig> configs) where T : Enum
+        {
+            Dictionary<int, UIConfig> intConfigs = new Dictionary<int, UIConfig>();
+            
+            foreach (var kvp in configs)
+            {
+                intConfigs.Add((int)(object)kvp.Key, kvp.Value);
+            }
+            
+            Initialize(intConfigs);
+        }
         
         public void Initialize(Dictionary<int, UIConfig> configs)
         {
@@ -179,10 +192,14 @@ namespace F8Framework.Core
         
         public void OnInit(object createParam)
         {
-            //if (EventSystem.current == null)
-            //{
-            //    LogF8.LogError("场景中缺少：EventSystem 组件");
-            //}
+            if (EventSystem.current == null)
+            {
+                LogF8.LogView("场景中缺少：EventSystem 组件，已自动添加");
+                GameObject eventSystem = new GameObject("EventSystem");
+                eventSystem.AddComponent<EventSystem>();
+                eventSystem.AddComponent<StandaloneInputModule>();
+                eventSystem.SetParent(transform);
+            }
         }
 
         public void OnUpdate()
@@ -205,6 +222,13 @@ namespace F8Framework.Core
             Destroy(gameObject);
         }
         
+        // 同步加载，使用枚举作为参数
+        public string ShowNotify<T>(T eventName, string content, UICallbacks callbacks = null) where T : Enum, IConvertible
+        {
+            int uiId = (int)(object)eventName;
+            return ShowNotify(uiId, content, callbacks);
+        }
+        
         public string ShowNotify(int uiId, string content, UICallbacks callbacks = null)
         {
             if (!_configs.TryGetValue(uiId, out UIConfig config))
@@ -215,11 +239,36 @@ namespace F8Framework.Core
             return _layerNotify.Show(uiId, config, content, callbacks);
         }
 
+        // 异步加载，使用枚举作为参数
+        public UILoader ShowNotifyAsync<T>(T eventName, string content, UICallbacks callbacks = null) where T : Enum, IConvertible
+        {
+            int uiId = (int)(object)eventName;
+            return ShowNotifyAsync(uiId, content, callbacks);
+        }
+        
+        public UILoader ShowNotifyAsync(int uiId, string content, UICallbacks callbacks = null)
+        {
+            if (!_configs.TryGetValue(uiId, out UIConfig config))
+            {
+                LogF8.LogView($"打开 ID 为 {uiId} 的 UI 失败，未找到配置。");
+                return default;
+            }
+            return _layerNotify.ShowAsync(uiId, config, content, callbacks);
+        }
+        
         public List<int> GetCurrentUIids()
         {
             return _currentUIids;
         }
 
+        // 同步加载，使用枚举作为参数
+        public string Open<T>(T eventName, object[] uiArgs = null, UICallbacks callbacks = null) where T : Enum, IConvertible
+        {
+            int uiId = (int)(object)eventName;
+            return Open(uiId, uiArgs, callbacks);
+        }
+        
+        // 同步加载，使用id作为参数
         public string Open(int uiId, object[] uiArgs = null, UICallbacks callbacks = null)
         {
             if (!_configs.TryGetValue(uiId, out UIConfig config))
@@ -245,6 +294,47 @@ namespace F8Framework.Core
             }
 
             return default;
+        }
+
+        // 异步加载，使用枚举作为参数
+        public UILoader OpenAsync<T>(T eventName, object[] uiArgs = null, UICallbacks callbacks = null) where T : Enum, IConvertible
+        {
+            int uiId = (int)(object)eventName;
+            return OpenAsync(uiId, uiArgs, callbacks);
+        }
+        
+        // 异步加载，使用id作为参数
+        public UILoader OpenAsync(int uiId, object[] uiArgs = null, UICallbacks callbacks = null)
+        {
+            if (!_configs.TryGetValue(uiId, out UIConfig config))
+            {
+                LogF8.LogView($"打开 ID 为 {uiId} 的 UI 失败，未找到配置。");
+                return null;
+            }
+            
+            switch (config.Layer)
+            {
+                case LayerType.Game:
+                    return _layerGame.AddAsync(uiId, config, uiArgs, callbacks);
+                case LayerType.UI:
+                    return _layerUI.AddAsync(uiId, config, uiArgs, callbacks);
+                case LayerType.PopUp:
+                    return _layerPopUp.AddAsync(uiId, config, uiArgs, callbacks);
+                case LayerType.Dialog:
+                    return _layerDialog.AddAsync(uiId, config, uiArgs, callbacks);
+                case LayerType.Notify:
+                    return _layerNotify.AddAsync(uiId, config, uiArgs, callbacks);
+                case LayerType.Guide:
+                    return _layerGuide.AddAsync(uiId, config, uiArgs, callbacks);
+            }
+
+            return null;
+        }
+        
+        public bool Has<T>(T eventName) where T : Enum, IConvertible
+        {
+            int uiId = (int)(object)eventName;
+            return Has(uiId);
         }
 
         public bool Has(int uiId)
@@ -305,7 +395,13 @@ namespace F8Framework.Core
             // 如果所有层都没有找到匹配的 GameObject，返回 null
             return null;
         }
-        
+
+        public List<GameObject> GetByUIid<T>(T eventName) where T : Enum, IConvertible
+        {
+            int uiId = (int)(object)eventName;
+            return GetByUIid(uiId);
+        }
+
         public List<GameObject> GetByUIid(int uiId)
         {
             if (!_configs.TryGetValue(uiId, out UIConfig config))
@@ -332,7 +428,13 @@ namespace F8Framework.Core
 
             return null;
         }
-        
+
+        public void Close<T>(T eventName, bool isDestroy = false, string guid = default) where T : Enum, IConvertible
+        {
+            int uiId = (int)(object)eventName;
+            Close(uiId, isDestroy, guid);
+        }
+
         public void Close(int uiId = default, bool isDestroy = false, string guid = default)
         {
             if (!_configs.TryGetValue(uiId, out UIConfig config))
@@ -356,7 +458,7 @@ namespace F8Framework.Core
                     _layerDialog.Close(config.AssetName, isDestroy);
                     break;
                 case LayerType.Notify:
-                    _layerNotify.CloseByGuid(guid, isDestroy);
+                    _layerNotify.CloseByGuid(guid, true);
                     break;
                 case LayerType.Guide:
                     _layerGuide.Close(config.AssetName, isDestroy);

@@ -13,7 +13,7 @@ namespace F8Framework.Core
     {
         public static string Separator = "_";
         public static string PackageSplit = "Package" + Separator;
-        public static string RemoteDirName = "/Remote";
+        public static string RemoteDirName = "/Remote/" + URLSetting.GetPlatformName();
         public static string HotUpdateDirName = "/HotUpdate";
         public static string PackageDirName = "/Package";
 
@@ -52,13 +52,11 @@ namespace F8Framework.Core
             }
             
             string path = GameConfig.LocalGameVersion.AssetRemoteAddress + "/" + nameof(GameVersion) + ".json";
+            LogF8.Log($"初始化远程版本：{path}");
+            
             UnityWebRequest webRequest = UnityWebRequest.Get(path);
             yield return webRequest.SendWebRequest();
-#if UNITY_2020_2_OR_NEWER
             if (webRequest.result != UnityWebRequest.Result.Success)
-#else
-            if (webRequest.isNetworkError || webRequest.isHttpError)
-#endif
             {
                 LogF8.LogError($"获取游戏远程版本失败：{path} ，错误：{webRequest.error}");
             }
@@ -80,14 +78,12 @@ namespace F8Framework.Core
                 yield break;
             }
 
-            string path = GameConfig.LocalGameVersion.AssetRemoteAddress + "/HotUpdate" + Separator + nameof(AssetBundleMap) + ".json";
+            string path = GameConfig.LocalGameVersion.AssetRemoteAddress + HotUpdateDirName + Separator + nameof(AssetBundleMap) + ".json";
+            LogF8.Log($"始化资源版本：{path}");
+            
             UnityWebRequest webRequest = UnityWebRequest.Get(path);
             yield return webRequest.SendWebRequest();
-#if UNITY_2020_2_OR_NEWER
             if (webRequest.result != UnityWebRequest.Result.Success)
-#else
-            if (webRequest.isNetworkError || webRequest.isHttpError)
-#endif
             {
                 LogF8.LogError($"获取游戏资源版本失败：{path} ，错误：{webRequest.error}");
             }
@@ -99,6 +95,12 @@ namespace F8Framework.Core
             }
             webRequest.Dispose();
             webRequest = null;
+            
+            if (File.Exists(Application.persistentDataPath + "/" + nameof(AssetBundleMap) + ".json"))
+            {
+                string json = FileTools.SafeReadAllText(Application.persistentDataPath + "/" + nameof(AssetBundleMap) + ".json");
+                AssetBundleMap.Mappings = Util.LitJson.ToObject<Dictionary<string, AssetBundleMap.AssetMapping>>(json);
+            }
         }
         
         // 游戏修复，资源清理
@@ -143,7 +145,8 @@ namespace F8Framework.Core
             {
                 assetBundleMappings.TryGetValue(resAssetMapping.Key, out AssetBundleMap.AssetMapping assetMapping);
                 
-                if (assetMapping == null || resAssetMapping.Value.MD5 != assetMapping.MD5) // 新增资源，MD5不同则需更新
+                if ((assetMapping == null || resAssetMapping.Value.MD5 != assetMapping.MD5) // 新增资源，MD5不同则需更新
+                    && !resAssetMapping.Value.AbName.IsNullOrEmpty() && !resAssetMapping.Value.MD5.IsNullOrEmpty())
                 {
                     string abPath = resAssetMapping.Value.Version + "/" + URLSetting.AssetBundlesName + "/" +
                                               URLSetting.GetPlatformName() + "/" + resAssetMapping.Value.AbName;
@@ -157,10 +160,6 @@ namespace F8Framework.Core
                     }
                     allSize += string.IsNullOrEmpty(resAssetMapping.Value.Size) ? 0 : long.Parse(resAssetMapping.Value.Size) ;
                     hotUpdateAssetUrl.TryAdd(resAssetMapping.Key, abPath);
-                }
-                else if(GameConfig.CompareVersions(assetMapping.Version, resAssetMapping.Value.Version) < 0) // 版本修正
-                {
-                    resAssetMapping.Value.Version = assetMapping.Version;
                 }
             }
             
@@ -178,12 +177,14 @@ namespace F8Framework.Core
         {
             if (!GameConfig.LocalGameVersion.EnableHotUpdate)
             {
+                WriteVersion();
                 completed?.Invoke();
                 return;
             }
             
             if (hotUpdateAssetUrl.Count <= 0)
             {
+                WriteVersion();
                 completed?.Invoke();
                 return;
             }
@@ -218,36 +219,42 @@ namespace F8Framework.Core
             hotUpdateDownloader.OnAllDownloadTaskCompleted += (eventArgs) =>
             {
                 LogF8.LogVersion($"所有热更资源获取完成！，用时：{eventArgs.TimeSpan}");
-                GameConfig.LocalGameVersion.Version = GameConfig.RemoteGameVersion.Version;
-                GameConfig.LocalGameVersion.HotUpdateVersion = new List<string>();
-                FileTools.SafeWriteAllText(Application.persistentDataPath + "/" + nameof(GameVersion) + ".json",
-                    Util.LitJson.ToJson(GameConfig.LocalGameVersion));
-                foreach (var asssetName in hotUpdateAssetUrl.Keys)
-                {
-                    if (GameConfig.RemoteAssetBundleMap.TryGetValue(asssetName, out AssetBundleMap.AssetMapping assetMapping))
-                    {
-                        if (assetMapping != null)
-                        {
-                            assetMapping.Updated = "1";
-                        }
-                    }
-                }
-                AssetBundleMap.Mappings = GameConfig.RemoteAssetBundleMap;
-                FileTools.SafeWriteAllText(Application.persistentDataPath + "/" + nameof(AssetBundleMap) + ".json",
-                    Util.LitJson.ToJson(AssetBundleMap.Mappings));
-                
+                WriteVersion();
                 completed?.Invoke();
             };
-            
+
+            List<string> tempDownloadUrl = new List<string>(hotUpdateAssetUrl.Count);
             // 添加下载清单
             foreach (var assetUrl in hotUpdateAssetUrl.Values)
             {
-                int index = assetUrl.IndexOf('/');
-                string result = assetUrl.Substring(index + 1);
-                hotUpdateDownloader.AddDownload(GameConfig.LocalGameVersion.AssetRemoteAddress + HotUpdateDirName + Separator + assetUrl,
-                    Application.persistentDataPath + "/HotUpdate/" + result);
+                if (!tempDownloadUrl.Contains(assetUrl))
+                {
+                    int index = assetUrl.IndexOf('/');
+                    string result = assetUrl.Substring(index + 1);
+                    hotUpdateDownloader.AddDownload(GameConfig.LocalGameVersion.AssetRemoteAddress + HotUpdateDirName + Separator + assetUrl,
+                        Application.persistentDataPath + HotUpdateDirName + "/" + result);
+                    tempDownloadUrl.Add(assetUrl);
+                }
             }
-            
+            void WriteVersion()
+            {
+                if (!GameConfig.RemoteGameVersion.Version.IsNullOrEmpty())
+                {
+                    GameConfig.LocalGameVersion.Version = GameConfig.RemoteGameVersion.Version;
+                    GameConfig.LocalGameVersion.HotUpdateVersion = new List<string>();
+                    FileTools.SafeWriteAllText(Application.persistentDataPath + "/" + nameof(GameVersion) + ".json",
+                        Util.LitJson.ToJson(GameConfig.LocalGameVersion));
+                }
+                
+                if (GameConfig.RemoteAssetBundleMap.Count > 0)
+                {
+                    AssetBundleMap.Mappings = GameConfig.RemoteAssetBundleMap;
+                    FileTools.SafeWriteAllText(Application.persistentDataPath + "/" + nameof(AssetBundleMap) + ".json",
+                        Util.LitJson.ToJson(AssetBundleMap.Mappings));
+                }
+                
+                AssetBundleManager.Instance.LoadAssetBundleManifestSync();
+            }
             // 下载器开始下载
             hotUpdateDownloader.LaunchDownload();
         }
@@ -255,7 +262,7 @@ namespace F8Framework.Core
         // 检查需要下载的分包
         public List<string> CheckPackageUpdate(List<string> subPackage)
         {
-            List<string> temp = new List<string>();
+            List<string> temp = new List<string>(subPackage.Count);
             foreach (var package in subPackage)
             {
                 if (GameConfig.LocalGameVersion.SubPackage.Contains(package))
@@ -287,7 +294,7 @@ namespace F8Framework.Core
                 return;
             }
             
-            List<string> downloadPaths = new List<string>();
+            List<string> downloadPaths = new List<string>(subPackages.Count);
             
             // 创建分包下载器
             packageDownloader = DownloadManager.Instance.CreateDownloader("packageDownloader", new Downloader());

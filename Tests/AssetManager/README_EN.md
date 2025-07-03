@@ -1,102 +1,209 @@
 # F8 AssetManager
 
-[![license](http://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT) 
-[![Unity Version](https://img.shields.io/badge/unity-2021.3.15f1-blue)](https://unity.com) 
-[![Platform](https://img.shields.io/badge/platform-Win%20%7C%20Android%20%7C%20iOS%20%7C%20Mac%20%7C%20Linux%20%7C%20WebGL-orange)]() 
+[![license](http://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![Unity Version](https://img.shields.io/badge/unity-2021|2022|2023|6000-blue)](https://unity.com)
+[![Platform](https://img.shields.io/badge/platform-Win%20%7C%20Android%20%7C%20iOS%20%7C%20Mac%20%7C%20Linux%20%7C%20WebGL-orange)]()
 
-## 简介（希望自己点击F8，就能开始制作游戏，不想多余的事）
-Unity F8 AssetManager资产加载组件。  
-1. 编辑器下：点击F8自动生成资产索引/AB名称，自动区分不同平台，清理多余AB和文件夹，Editor模式下减少开发周期。  
-2. 运行时：同步/异步加载单个资产，展开文件夹或同一AB下所有资产，自动判断是 Resources / AssetBundle 资产，加载Remote远程资产，获取加载进度，同步打断异步加载。
-3. AssetBundle可以这样加载：1. 单个资产单个AB 2. 指定文件夹名称（文件夹第一层的AB） 3. 设置多个资产为同一AB名（指定任意资产名）
-4. 注意AB资产地址(大小写不敏感)，文件和目录名需要保证唯一。
+## Introduction (Simply press F8 to start game development without distractions)
+**Unity F8 AssetManager Component**
+1. Editor Mode:
+   * Press F8 to auto-generate asset indices/AB names
+   * Auto-detect platform differences
+   * Clean redundant ABs and folders
+   * Reduce development cycles in Editor mode
+2. Runtime:
+   * Sync/async loading of individual assets
+   * Load all assets in a folder or shared AB
+   * Auto-detect Resources/AssetBundle assets
+   * Load remote assets
+   * Get loading progress
+   * Interrupt async loading synchronously
+3. AssetBundle Loading Methods:
+   * Single asset per AB
+   * Folder-based AB (first-level only)
+   * Custom AB grouping (multiple assets under same AB name)
+4. Important: AB asset paths are case-insensitive. Ensure unique file/directory names.
 
-## 导入插件（需要首先导入核心）
-注意！内置在->F8Framework核心：https://github.com/TippingGame/F8Framework.git  
-方式一：直接下载文件，放入Unity  
-方式二：Unity->点击菜单栏->Window->Package Manager->点击+号->Add Package from git URL->输入：https://github.com/TippingGame/F8Framework.git  
+## Plugin Installation (Requires Core Framework First)
+Note! Built into → F8Framework Core: https://github.com/TippingGame/F8Framework.git  
+Method 1: Download files directly and import to Unity  
+Method 2: Unity → Menu Bar → Window → Package Manager → "+" → Add Package from git URL → Enter: https://github.com/TippingGame/F8Framework.git
 
-### 初始化
+### Initialization
 
-1. 点击F8，自动获取 Resources 下的所有资产，生成索引（注意：资产名称唯一）  
-          自动获取 Assets / AssetBundles 下的所有资产，生成索引（注意：资产名称唯一）  
-          自动生成索引文件 Assets / F8Framework / AssetMap 目录下面  
-![image](ui_20240205225637.png)
-![image](ui_20240205230012.png)
+1. Press F8 to:
+   * Auto-scan all assets in Resources (Note: Asset names must be unique)
+   * Auto-scan all assets in Assets/AssetBundles (Note: Asset names must be unique)
+   * Generate index files in Assets/F8Framework/AssetMap  
+   ![image](https://tippinggame-1257018413.cos.ap-guangzhou.myqcloud.com/TippingGame/AssetManager/ui_20240205225637.png)  
+   ![image](https://tippinggame-1257018413.cos.ap-guangzhou.myqcloud.com/TippingGame/AssetManager/ui_20240205230012_2.png)
 ---------------------------------
-2. 生成AssetBundles目录，自动赋予资产AB名称（已有AB名不会覆盖），打包 AssetBundle，目录 StreamingAssets / AssetBundles / Windows（不同平台例如 Windows / iOS ）  
-![image](ui_20240205225815.png)
+2. Files in Assets/AssetBundles:
+   * Auto-assign AB names (Note: Existing AB names won't be overwritten. Clear AB names manually if needed)
+   * Built ABs will generate in StreamingAssets/AssetBundles/Windows (Note: Clear this directory manually if no ABs are loaded)  
+   ![image](https://tippinggame-1257018413.cos.ap-guangzhou.myqcloud.com/TippingGame/AssetManager/ui_20240205225815.png)
 ---------------------------------
-3. 假如没有报错，就可以愉快地使用了  
+3. **Important**: Loading cross-platform ABs (Android/iOS/WebGL) in Editor may cause:
+   * Purple shaders
+   * Scene loading failures
+   * Audio loading failures
+   * **Solution**: Enable Editor Mode
+---------------------------------
+4. **Important**: How to Enable Editor Mode:
+   * Enable in code: FF8.Asset.IsEditorMode = true;
+   * Or toggle in Editor:  
+   ![image](https://tippinggame-1257018413.cos.ap-guangzhou.myqcloud.com/TippingGame/AssetManager/ui_20251736474182.png)
+---------------------------------
+5. **Important**: WebGL doesn't support synchronous AB loading. Use Resources for sync loading instead.
+---------------------------------
+6. If no errors occur, you're ready to go!
 
-### 代码使用方法
+### Code Examples
 ```C#
-    IEnumerator Start()
+IEnumerator Start()
+{
+    /*----------All loading methods auto-detect Resources/AssetBundle assets----------*/
+    
+    // [Important] Editor mode - no need to press F8 after every asset modification
+    FF8.Asset.IsEditorMode = true;
+    
+    
+    /*-------------------------------------Sync Loading-------------------------------------*/
+    // Load single asset
+    GameObject go = FF8.Asset.Load<GameObject>("Cube");
+
+    // assetName: Asset name
+    // subAssetName: Sub-asset name (for Sprite in Multiple mode)
+    // [Warning] REMOTE_ASSET_BUNDLE requires AssetRemoteAddress = "http://127.0.0.1:6789/remote"
+    Sprite sprite = FF8.Asset.Load<Sprite>("PackForest01", "PackForest01_12", AssetManager.AssetAccessMode.REMOTE_ASSET_BUNDLE);
+    
+    // Load all assets
+    FF8.Asset.LoadAll("Cube");
+    // Load all sub-assets
+    FF8.Asset.LoadSub("Cube");
+    
+    
+    /*-------------------------------------Async Loading-------------------------------------*/
+    FF8.Asset.LoadAsync<GameObject>("Cube", (go) =>
     {
-        /*----------所有加载均会自动判断是Resources资产还是AssetBundle资产----------*/
-        
-        /*-------------------------------------同步加载-------------------------------------*/
-        GameObject go = FF8.Asset.Load<GameObject>("Cube");
-        
-        // 指定加载模式REMOTE_ASSET_BUNDLE，加载远程AssetBundle资产，需要配置AssetRemoteAddress = "http://127.0.0.1:6789/remote"
-        GameObject go5 = FF8.Asset.Load<GameObject>("Cube", AssetManager.AssetAccessMode.REMOTE_ASSET_BUNDLE);
-        
-        // 加载文件夹内资产（不遍历所有文件夹）
-        FF8.Asset.LoadDir("NewFolder");
-        
-        
-        /*-------------------------------------异步加载-------------------------------------*/
-        
-        FF8.Asset.LoadAsync<GameObject>("Cube", (go) =>
-        {
-            GameObject goo = Instantiate(go);
-        });
-        
-        // 协程
-        var load = FF8.Asset.LoadAsyncCoroutine<GameObject>("Cube");
-        yield return load;
-        GameObject go2 = FF8.Asset.GetAssetObject<GameObject>("Cube");
-        
-        // 加载文件夹内资产
-        FF8.Asset.LoadDirAsync("NewFolder", () =>
-        {
-            
-        });
-        
-        // 协程，迭代文件夹内资产（不遍历所有文件夹）
-        foreach(var item in FF8.Asset.LoadDirAsyncCoroutine("NewFolder"))
-        {
-            yield return item;
-        }
-        // 也可以这样
-        var loadDir = FF8.Asset.LoadDirAsyncCoroutine("NewFolder").GetEnumerator();
-        while (loadDir.MoveNext())
-        {
-            yield return loadDir.Current;
-        }
-        
-        
-        /*-------------------------------------其他功能-------------------------------------*/
-        
-        // 获取加载进度
-        float loadProgress = FF8.Asset.GetLoadProgress("Cube");
-        
-        // 获取所有加载器的进度
-        float loadProgress2 = FF8.Asset.GetLoadProgress();
-        
-        // 同步卸载资产
-        FF8.Asset.Unload("Cube", false);//根据AbPath卸载资产，如果设置为 true，完全卸载。
-        
-        // 步卸载资产
-        FF8.Asset.UnloadAsync("Cube", false, () =>
-        {
-            // 卸载资产完成
-        });
-        
-        // 编辑器模式，无需打包AB
-        FF8.Asset.IsEditorMode = true;
+        GameObject goo = Instantiate(go);
+    });
+
+    // [Note] async/await (no multithreading, works on WebGL)
+    // await FF8.Asset.LoadAsync<GameObject>("Cube");
+    // or
+    // BaseLoader load = FF8.Asset.LoadAsync<GameObject>("Cube");
+    // await load;
+    
+    // Coroutine method
+    yield return FF8.Asset.LoadAsync<GameObject>("Cube");
+    // or
+    BaseLoader load2 = FF8.Asset.LoadAsync<GameObject>("Cube");
+    yield return load2;
+    GameObject go2 = load2.GetAssetObject<GameObject>();
+    
+    // Load all assets
+    BaseLoader loaderAll = FF8.Asset.LoadAllAsync("Cube");
+    yield return loaderAll;
+    Dictionary<string, Object> allAsset = loaderAll.GetAllAssetObject();
+    
+    // Load all sub-assets
+    BaseLoader loaderSub = FF8.Asset.LoadSubAsync("Atlas");
+    yield return loaderSub;
+    Dictionary<string, Sprite> allAsset2 = loaderSub.GetAllAssetObject<Sprite>();
+    
+    
+    /*-------------------------------------Folder Loading-------------------------------------*/
+    // [Note] Only loads first-level assets (non-recursive)
+    FF8.Asset.LoadDir("NewFolder");
+    
+    // async/await (no multithreading, works on WebGL)
+    // BaseDirLoader loadDir = FF8.Asset.LoadDirAsync("NewFolder", () => { });
+    // await loadDir;
+    
+    // Async folder loading
+    BaseDirLoader loadDir2 = FF8.Asset.LoadDirAsync("NewFolder", () => { });
+    yield return loadDir2;
+    
+    // Access all BaseLoaders
+    List<BaseLoader> loaders = loadDir2.Loaders;
+    
+    // Progress tracking
+    foreach (var item in FF8.Asset.LoadDirAsyncCoroutine("NewFolder"))
+    {
+        yield return item;
     }
+
+    // Alternative method
+    var loadDir3 = FF8.Asset.LoadDirAsyncCoroutine("NewFolder").GetEnumerator();
+    while (loadDir3.MoveNext())
+    {
+        yield return loadDir3.Current;
+    }
+    
+    
+    /*-------------------------------------Utilities-------------------------------------*/
+    // Get all assets
+    Dictionary<string, Object> allAsset3 = FF8.Asset.GetAllAssetObject("Cube");
+    
+    // Get specific type only
+    Dictionary<string, Sprite> allAsset4 = FF8.Asset.GetAllAssetObject<Sprite>("Atlas");
+    
+    // Get single asset
+    GameObject go3 = FF8.Asset.GetAssetObject<GameObject>("Cube");
+    
+    // Get loading progress
+    float loadProgress = FF8.Asset.GetLoadProgress("Cube");
+
+    // Get total progress
+    float loadProgress2 = FF8.Asset.GetLoadProgress();
+
+    // [Important] Sync unload
+    // Set true to completely unload AB
+    FF8.Asset.Unload("Cube", false); 
+
+    // Async unload
+    FF8.Asset.UnloadAsync("Cube", false, () =>
+    {
+        // Callback when unload completes
+    });
+    
+    
+    /*-------------------------------------Examples-------------------------------------*/
+    // [Warning] Must load skybox material or will turn purple
+    // [Limitation] Cannot load scenes from Resources directory
+    FF8.Asset.Load("Scene");
+    SceneManager.LoadScene("Scene");
+    
+    // [Prerequisite] Must load atlas first
+    FF8.Asset.Load("SpriteAtlas");
+    
+    // [Optimization] Skip preload if atlas/images share same AB name
+    FF8.Asset.LoadAsync<Sprite>("PackForest_2", sprite =>
+    {
+        LogF8.Log(sprite);
+    });
+    
+    // [Critical] Texture2D/Sprite conflict: 
+    // If loaded as Texture2D first, cannot load as Sprite later
+    FF8.Asset.Load<Texture2D>("PackForest_2");
+}
 ```
 
-### 编辑器拓展功能
-![image](ui_20240216212631.png)
+### Editor Features
+#### [Multi-Process AB Building](https://docs.unity3d.com/6000.1/Documentation/Manual/Build-MultiProcess.html)
+Requires Unity 6000+  
+Project Settings → Editor → Build Pipeline → Enable "Multi-Process AssetBundle Building"
+#### Asset Inspector
+![image](https://tippinggame-1257018413.cos.ap-guangzhou.myqcloud.com/TippingGame/AssetManager/ui_20250523001_2.png)
+#### Important: Clear AB names manually when moving files out of AssetBundles directory
+1. Editor Tools:
+* 1. Find asset references (full project scan)
+* 2. Clear AB names (supports multi-select)
+* 3. Set custom AB names (supports multi-select)
+* 4. Global missing reference detector
+
+![image](https://tippinggame-1257018413.cos.ap-guangzhou.myqcloud.com/TippingGame/AssetManager/ui_20240216212631_2.png)  
+
+#### Quick Access: Hover over files/folders and press Spacebar to open in system explorer
+![image](https://tippinggame-1257018413.cos.ap-guangzhou.myqcloud.com/TippingGame/AssetManager/ui_20241112212631.png)  

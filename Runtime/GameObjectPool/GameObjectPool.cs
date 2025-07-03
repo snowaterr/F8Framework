@@ -130,7 +130,26 @@ namespace F8Framework.Core
                 }
             }
         }
+        
+        /// <summary>
+        /// Spawns a GameObject.
+        /// </summary>
+        /// <param name="prefabName">GameObject prefab name to spawn.</param>
+        /// <returns>Spawned GameObject.</returns>
+        public GameObject Spawn(string prefabName)
+        {
+            F8GameObjectPool prefab = GetPoolByPrefabName(prefabName);
+            if (!prefab)
+            {
+                LogF8.LogError("对象池未创建，通过名称生成对象失败。");
+                return null;
+            }
+            Transform prefabTransform = prefab.AttachedPrefab.transform;
 
+            return DefaultSpawn(
+                prefab.AttachedPrefab, prefabTransform.localPosition, prefabTransform.localRotation, null, false, out _);
+        }
+        
         /// <summary>
         /// Spawns a GameObject.
         /// </summary>
@@ -431,6 +450,26 @@ namespace F8Framework.Core
             return pool;
         }
 
+        /// <summary>
+        /// Returns the pool by prefab name.
+        /// </summary>
+        /// <param name="prefabName">GameObject's prefab name.</param>
+        /// <returns>Found pool.</returns>
+        public F8GameObjectPool GetPoolByPrefabName(string prefabName)
+        {
+            foreach (var poolKey in AllPoolsMap.Keys)
+            {
+                if (poolKey.name == prefabName)
+                {
+                    return AllPoolsMap[poolKey];
+                }
+            }
+#if DEBUG
+            LogF8.LogError($"未通过预制体名称 '{prefabName}' 找到池!", prefabName);
+#endif
+            return null;
+        }
+        
         /// <summary>
         /// Is the component a clone (spawned using F8Pool)?
         /// </summary>

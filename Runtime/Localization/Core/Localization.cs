@@ -37,7 +37,14 @@ namespace F8Framework.Core
             
             if (Application.isPlaying)
             {
-                Util.Assembly.InvokeMethod("F8DataManager", "LoadLocalizedStrings", new object[] { });
+                try
+                {
+                    Util.Assembly.InvokeMethod("F8DataManager", "LoadLocalizedStrings", new object[] { });
+                }
+                catch
+                {
+                    LogF8.LogError("缺少本地化表或加载本地化表失败！");
+                }
             }
             else
             {
@@ -67,10 +74,16 @@ namespace F8Framework.Core
             
             // 必须先加载本地化配置表
 #if UNITY_WEBGL
-            LogF8.LogConfig("（提示）由于WebGL异步加载完本地化表，请在创建本地化模块之前加上：yield return F8DataManager.Instance.LoadLocalizedStringsIEnumerator();");
             LoadSuccess();
 #else
-            Util.Assembly.InvokeMethod("F8DataManager", "LoadLocalizedStrings", new object[] { });
+            try
+            {
+                Util.Assembly.InvokeMethod("F8DataManager", "LoadLocalizedStrings", new object[] { });
+            }
+            catch
+            {
+                LogF8.LogError("缺少本地化表或加载本地化表失败！");
+            }
             LoadSuccess();
 #endif
         }
@@ -173,6 +186,7 @@ namespace F8Framework.Core
 
             CurrentLanguageName = LanguageList[languageIndex];
             LocalizationSettings.SaveLanguageSettings();
+            InjectAll();
         }
 
         /// <summary>
@@ -183,7 +197,6 @@ namespace F8Framework.Core
         {
             var prevIndex = (int)Mathf.Repeat(CurrentLanguageIndex - 1, LanguageList.Count);
             ChangeLanguage(LanguageList[prevIndex]);
-            InjectAll();
             return LanguageList[prevIndex];
         }
 
@@ -195,7 +208,6 @@ namespace F8Framework.Core
         {
             var nextIndex = (int)Mathf.Repeat(CurrentLanguageIndex + 1, LanguageList.Count);
             ChangeLanguage(LanguageList[nextIndex]);
-            InjectAll();
             return LanguageList[nextIndex];
         }
 
@@ -203,7 +215,11 @@ namespace F8Framework.Core
         int GetLanguageIndex(string languageName)
         {
             var i = LanguageList.FindIndex(s => s.Contains(languageName));
-            if (i == -1) LogF8.LogError($"不可用的语言名称: {languageName}");
+            if (i == -1)
+            {
+                LogF8.LogError($"不可用的语言名称: {languageName}");
+                return 0;
+            }
             return i;
         }
 

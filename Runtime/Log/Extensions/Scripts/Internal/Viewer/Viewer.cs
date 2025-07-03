@@ -38,6 +38,8 @@ namespace F8Framework.Core
 
         private GestureTouchCount gestureTouchCount = default;
         private CheakingKey cheakingKey = default;
+        private bool keyCodeEnable = false;
+        private bool gestureEnable = false;
         private bool isTouchBegin = false;
         private float touchTime = 0f;
 
@@ -109,7 +111,12 @@ namespace F8Framework.Core
         {
             cheakingKey = key;
         }
-
+        
+        public void SetKeyCodeEnable(bool enable)
+        {
+            keyCodeEnable = enable;
+        }
+        
         private void Update()
         {
             if (pannel.activeSelf == false)

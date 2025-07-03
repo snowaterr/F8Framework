@@ -29,7 +29,7 @@ namespace F8Framework.Tests
             kcpServerChannel.OnDataReceived += KcpServer_OnDataReceived;
             kcpServerChannel.OnDisconnected += KcpServer_OnDisconnected;
             
-            // 可选
+            // 可选，开启多线程
             // FF8.Network.StartThread();
             
             //channel的TickRefresh函数可自定义管理轮询，networkManager的作用是存放通道并调用TickRefresh。
@@ -57,9 +57,9 @@ namespace F8Framework.Tests
             tcpServerChannel.Close();
         }
 
-        void TcpServer_OnConnected(int conv)
+        void TcpServer_OnConnected(int conv, string ip)
         {
-            LogF8.LogNet($"TCP_SERVER conv: {conv} Connected");
+            LogF8.LogNet($"TCP_SERVER conv: {conv} Connected, ip: {ip}");
         }
 
         void TcpServer_OnDataReceived(int conv, byte[] data)
@@ -86,9 +86,9 @@ namespace F8Framework.Tests
             kcpServerChannel.Close();
         }
 
-        void KcpServer_OnConnected(int conv)
+        void KcpServer_OnConnected(int conv, string ip)
         {
-            LogF8.LogNet($"KCP_SERVER conv: {conv} Connected");
+            LogF8.LogNet($"KCP_SERVER conv: {conv} Connected, ip: {ip}");
         }
 
         void KcpServer_OnDataReceived(int conv, byte[] data)

@@ -27,7 +27,7 @@ namespace F8Framework.Launcher
             FF8.GameObjectPool = ModuleCenter.CreateModule<GameObjectPool>();
             FF8.Asset = ModuleCenter.CreateModule<AssetManager>();
 #if UNITY_WEBGL
-            yield return AssetBundleManager.Instance.LoadAssetBundleManifest(); // WebGL专用
+            yield return AssetBundleManager.Instance.LoadAssetBundleManifest(); // WebGL专用，如果游戏中没有使用任何AB包加载资源，可以删除此方法的调用！
 #endif
             FF8.Config = ModuleCenter.CreateModule<F8DataManager>();
             FF8.Audio = ModuleCenter.CreateModule<AudioManager>();

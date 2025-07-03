@@ -13,11 +13,16 @@ namespace F8Framework.Core
         public int Field = 0;
         public Action OnSecond = null;
         public Action OnComplete = null;
-        public long StartTime = 0;
         public bool IsFinish = false;
         public bool IsFrameTimer = false;
+        public bool IsPaused = false;
         
-        public Timer(object handle, int id, float step = 1f, float delay = 0f, int field = 0, Action onSecond = null, Action onComplete = null, bool isFrameTimer = false)
+        // 存储初始值以便重置
+        private float _initialStep;
+        private float _initialDelay;
+        private int _initialField;
+        
+        public void Init(object handle, int id, float step = 1f, float delay = 0f, int field = 0, Action onSecond = null, Action onComplete = null, bool isFrameTimer = false)
         {
             Handle = handle;
             ID = id;
@@ -27,30 +32,63 @@ namespace F8Framework.Core
             OnSecond = onSecond;
             OnComplete = onComplete;
             IsFrameTimer = isFrameTimer;
+            // 保存初始值
+            _initialStep = step;
+            _initialDelay = delay;
+            _initialField = field;
         }
          
-        public bool Update(float dt)
+        public int Update(float dt)
         {
+            if (IsPaused)
+                return 0;
+            
+            int triggerCount = 0; // 记录触发次数
+
             if (!isDelayCompleted)
             {
                 Delay -= dt;
                 if (Delay <= 0f)
                 {
                     isDelayCompleted = true;
-                    elapsedTime = 0f;
-                    return true;
+                    elapsedTime = -Delay; // 保留超出部分时间
+                    triggerCount++;
+                    Delay = 0f;
                 }
-                return false;
+                else
+                {
+                    return triggerCount;
+                }
+            }
+            else
+            {
+                elapsedTime += dt;
             }
 
-            elapsedTime += dt;
-
+            // 计算需要触发的次数
             if (elapsedTime >= Step)
             {
-                elapsedTime -= Step;
-                return true;
+                float stepsFloat = elapsedTime / Step;
+                int steps = UnityEngine.Mathf.FloorToInt(stepsFloat);
+                triggerCount += steps;
+                elapsedTime -= steps * Step;
             }
-            return false;
+
+            return triggerCount;
+        }
+        
+        // 重置计时器到初始状态
+        public void Reset()
+        {
+            IsPaused = false;
+            elapsedTime = 0f;
+            IsFinish = false;
+            isDelayCompleted = false;
+            
+            // 恢复初始值
+            Step = _initialStep;
+            Delay = _initialDelay;
+            Field = _initialField;
         }
     }
 }

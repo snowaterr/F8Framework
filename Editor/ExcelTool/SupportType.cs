@@ -16,6 +16,7 @@ namespace F8Framework.Core.Editor
         private string[] Types;
         private string ClassName;
         private string InputPath;
+        private StringBuilder enumSource = new StringBuilder();
 
         public ScriptGenerator(string inputPath, string className, string[] fileds, string[] types)
         {
@@ -36,9 +37,11 @@ namespace F8Framework.Core.Editor
                                     "\n字段名为空:" + (Names == null));
             }
             // 使用LINQ的GroupBy和Any来找出重复的元素  
-            var duplicates = Names.GroupBy(name => name)  
-                .Where(group => group.Count() > 1)  
-                .Select(group => group.Key)  
+            var duplicates = Names
+                .Where(name => !string.IsNullOrEmpty(name))  // 检查是否为 null 或空字符串
+                .GroupBy(name => name)
+                .Where(group => group.Count() > 1)
+                .Select(group => group.Key)
                 .ToList();
             if (duplicates.Count > 0)
             {
@@ -53,7 +56,7 @@ namespace F8Framework.Core.Editor
             {
                 if (Names[i].Equals("id", StringComparison.OrdinalIgnoreCase))
                 {
-                    return GetTrueType(Types[i]);
+                    return ReadExcel.GetTrueType(Types[i], ClassName, InputPath);
                 }
             }
 
@@ -69,12 +72,15 @@ namespace F8Framework.Core.Editor
             classSource.Append("Don't Edit it*/\n");
             classSource.Append("\n");
             classSource.Append("using System;\n");
-            classSource.Append("using System.Collections.Generic;\n\n");
+            classSource.Append("using System.Collections.Generic;\n");
+            classSource.Append("using UnityEngine.Scripting;\n");
+            classSource.Append("using UnityEngine;\n\n");
             classSource.Append("namespace " + ExcelDataTool.CODE_NAMESPACE + "\n");
             classSource.Append("{\n");
             classSource.Append("\t[Serializable]\n");
             classSource.Append("\tpublic class " + ClassName + "Item\n"); //表里每一条数据的类型名为表类型名加Item
             classSource.Append("\t{\n");
+            enumSource.Clear();
             //设置成员
             for (int i = 0; i < fields.Length; ++i)
             {
@@ -93,13 +99,18 @@ namespace F8Framework.Core.Editor
             {
                 if (fields[i].Equals("id", StringComparison.OrdinalIgnoreCase))
                 {
-                    idType = GetTrueType(types[i]);
+                    idType = ReadExcel.GetTrueType(types[i], ClassName, InputPath);
                     break;
                 }
             }
 
+            classSource.Append("\t\t[Preserve]\n");
             classSource.Append("\t\tpublic " + "Dictionary<" + idType + ", " + ClassName + "Item" + "> " + "Dict" +
                                " = new Dictionary<" + idType + ", " + ClassName + "Item" + ">();\n");
+            if (enumSource.Length > 0)
+            {
+                classSource.Append(enumSource.ToString());
+            }
             classSource.Append("\t}\n");
             classSource.Append("}\n");
             return classSource.ToString();
@@ -131,19 +142,16 @@ namespace F8Framework.Core.Editor
             if (string.IsNullOrEmpty(type) || string.IsNullOrEmpty(propertyName))
                 return null;
 
-            type = GetTrueType(type);
+            enumSource.Append(PropertyEnum(type, ClassName, InputPath));
+            
+            type = ReadExcel.GetTrueType(type, ClassName, InputPath);
             if (!string.IsNullOrEmpty(type))
             {
                 StringBuilder sbProperty = new StringBuilder();
-                if (type.EndsWith("[]"))
-                {
-                    sbProperty.Append("\tpublic " + type + " " + propertyName + ";\n");
-                }
-                else
-                {
-                    sbProperty.Append("\tpublic " + type + " " + propertyName + ";\n");
-                }
-
+                
+                sbProperty.Append("\t\t[Preserve]\n");
+                sbProperty.Append("\t\tpublic " + type + " " + propertyName + ";\n");
+                
                 return sbProperty.ToString();
             }
             else
@@ -152,71 +160,106 @@ namespace F8Framework.Core.Editor
             }
         }
 
-        private string GetTrueType(string type)
+        private string PropertyEnum(string type, string className = "", string inputPath = "", bool writtenForm = true)
         {
-            switch (type)
+            if (!type.StartsWith(SupportType.ENUM))
+                return "";
+
+            // 1. 检查是否有大括号（完整定义）或只有尖括号（简化定义）
+            bool hasBraces = type.Contains('{') && type.Contains('}');
+            string enumDefinition;
+            string enumValues = "";
+
+            if (hasBraces)
             {
-                case SupportType.INT:
-                    type = "int";
-                    break;
-                case SupportType.LONG:
-                    type = "long";
-                    break;
-                case SupportType.FLOAT:
-                    type = "float";
-                    break;
-                case SupportType.DOUBLE:
-                    type = "double";
-                    break;
-                case SupportType.STRING or SupportType.STRINGFULL:
-                    type = "string";
-                    break;
-                case SupportType.OBJ or SupportType.OBJFULL:
-                    type = "System.Object";
-                    break;
-                case SupportType.ARRAY_INT:
-                    type = "int[]";
-                    break;
-                case SupportType.ARRAY_LONG:
-                    type = "long[]";
-                    break;
-                case SupportType.ARRAY_FLOAT:
-                    type = "float[]";
-                    break;
-                case SupportType.ARRAY_DOUBLE:
-                    type = "double[]";
-                    break;
-                case SupportType.ARRAY_STRING or SupportType.ARRAY_STRINGFULL:
-                    type = "string[]";
-                    break;
-                case SupportType.ARRAY_OBJ or SupportType.ARRAY_OBJFULL:
-                    type = "System.Object[]";
-                    break;
-                case SupportType.ARRAY_ARRAY_INT:
-                    type = "int[][]";
-                    break;
-                case SupportType.ARRAY_ARRAY_LONG:
-                    type = "long[][]";
-                    break;
-                case SupportType.ARRAY_ARRAY_FLOAT:
-                    type = "float[][]";
-                    break;
-                case SupportType.ARRAY_ARRAY_DOUBLE:
-                    type = "double[][]";
-                    break;
-                case SupportType.ARRAY_ARRAY_STRING or SupportType.ARRAY_ARRAY_STRINGFULL:
-                    type = "string[][]";
-                    break;
-                case SupportType.ARRAY_ARRAY_OBJ or SupportType.ARRAY_ARRAY_OBJFULL:
-                    type = "System.Object[][]";
-                    break;
-                default:
-                    throw new Exception("输入了错误的数据类型:  " + type + ", 类名:  " + ClassName + ", 位于:  " + InputPath);
+                // 完整定义：enum<...>{...}
+                int startBrace = type.IndexOf('{');
+                int endBrace = type.LastIndexOf('}');
+
+                if (startBrace == -1 || endBrace == -1)
+                {
+                    throw new Exception("枚举定义缺少大括号");
+                }
+
+                enumDefinition = type.Substring(SupportType.ENUM.Length, startBrace - SupportType.ENUM.Length)
+                    .Trim('<', '>', ' ');
+                enumValues = type.Substring(startBrace + 1, endBrace - startBrace - 1).Trim();
+            }
+            else
+            {
+                // 简化定义：enum<...>
+                int startAngle = type.IndexOf('<');
+                int endAngle = type.LastIndexOf('>');
+
+                if (startAngle == -1 || endAngle == -1)
+                {
+                    throw new Exception("枚举定义缺少尖括号");
+                }
+
+                enumDefinition = type.Substring(startAngle + 1, endAngle - startAngle - 1).Trim();
             }
 
-            return type;
-        }
+            // 2. 分割参数
+            string[] enumParams = enumDefinition.Split(',');
+            if (enumParams.Length < 1)
+            {
+                throw new Exception("枚举定义至少需要包含枚举名称");
+            }
 
+            string enumName = enumParams[0].Trim();
+
+            // 3. 检查类名前缀（如果包含点）
+            if (enumName.Contains('.'))
+            {
+                string[] parts = enumName.Split('.');
+                if (parts[0] != className)
+                {
+                    return "";
+                }
+            }
+
+            // 4. 设置默认值
+            string underlyingType = enumParams.Length > 1 ? enumParams[1].Trim() : "int"; // 默认为int
+            bool isFlags = enumParams.Length > 2 &&
+                           enumParams[2].Trim().Equals("Flags", StringComparison.OrdinalIgnoreCase);
+
+            // 5. 生成C#枚举代码
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+
+            if (isFlags)
+            {
+                sb.AppendLine("\t\t[System.Flags]");
+            }
+
+            sb.AppendLine("\t\t[Preserve]");
+
+            sb.Append("\t\tpublic enum ").Append(enumName).Append(" : ").Append(ReadExcel.GetTrueType(underlyingType, className, inputPath, writtenForm)) .AppendLine();
+            sb.AppendLine("\t\t{");
+
+            // 6. 处理枚举值（如果有）
+            if (hasBraces && !string.IsNullOrEmpty(enumValues))
+            {
+                string[] valuePairs = enumValues.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (string pair in valuePairs)
+                {
+                    string trimmedPair = pair.Trim();
+                    if (!string.IsNullOrEmpty(trimmedPair))
+                    {
+                        sb.AppendLine("\t\t\t" + trimmedPair + ",");
+                    }
+                }
+            }
+            else
+            {
+                // 简化定义时添加一个默认值
+                sb.AppendLine("\t\t\tNone = 0,");
+            }
+
+            sb.AppendLine("\t\t}");
+
+            return sb.ToString();
+        }
+        
         //创建数据管理器脚本
         public static void CreateDataManager(Dictionary<string, ScriptGenerator> codeList)
         {
@@ -238,7 +281,8 @@ namespace F8Framework.Core.Editor
             source.Append("using System.Runtime.Serialization;\n");
             source.Append("using System.Runtime.Serialization.Formatters.Binary;\n");
             source.Append("using System.IO;\n");
-            source.Append("using F8Framework.Core;\n\n");
+            source.Append("using F8Framework.Core;\n");
+            source.Append("using UnityEngine.Scripting;\n\n");
             source.Append("namespace " + ExcelDataTool.CODE_NAMESPACE + "\n");
             source.Append("{\n");
             source.Append("\tpublic class F8DataManager : ModuleSingleton<F8DataManager>, IModule\n");
@@ -260,6 +304,7 @@ namespace F8Framework.Core.Editor
                 ScriptGenerator sg = dict.Value;
                 string typeName = t + "Item"; //类型名
                 string typeNameNotItem = t; //类型名没item
+                source.Append("\t\t[Preserve]\n");
                 source.Append("\t\tpublic " + typeName + " Get" + typeNameNotItem + "ByID" + "(" + sg.GetIdType() + " id)\n");
                 source.Append("\t\t{\n");
                 source.Append("\t\t\t" + typeName + " t = null;\n");
@@ -269,7 +314,7 @@ namespace F8Framework.Core.Editor
                               '"' + " ，配置表： " + t + '"' + ");\n");
                 source.Append("\t\t\treturn t;\n");
                 source.Append("\t\t}\n\n");
-
+                source.Append("\t\t[Preserve]\n");
                 source.Append("\t\tpublic Dictionary<" + sg.GetIdType() + ", " + typeName + ">" + " Get" + typeNameNotItem + "()\n");
                 source.Append("\t\t{\n");
                 source.Append("\t\t\treturn p_" + t + ".Dict;\n");
@@ -283,16 +328,19 @@ namespace F8Framework.Core.Editor
             if (hasLocalizedStrings)
             {
                 //只加载本地化表
+                source.Append("\t\t[Preserve]\n");
                 source.Append("\t\tpublic void LoadLocalizedStrings()\n");
                 source.Append("\t\t{\n");
                 source.Append("\t\t\tp_LocalizedStrings = Load<LocalizedStrings>(\"LocalizedStrings\") as LocalizedStrings;\n");
                 source.Append("\t\t}\n\n");
             
+                source.Append("\t\t[Preserve]\n");
                 source.Append("\t\tpublic void LoadLocalizedStringsCallback(Action onLoadComplete)\n");
                 source.Append("\t\t{\n");
                 source.Append("\t\t\tUtil.Unity.StartCoroutine(LoadLocalizedStringsIEnumerator(onLoadComplete));\n");
                 source.Append("\t\t}\n\n");
             
+                source.Append("\t\t[Preserve]\n");
                 source.Append("\t\tpublic IEnumerator LoadLocalizedStringsIEnumerator(Action onLoadComplete = null)\n");
                 source.Append("\t\t{\n");
                 source.Append("\t\t\tyield return LoadAsync<LocalizedStrings>(\"LocalizedStrings\", result => p_LocalizedStrings = result as LocalizedStrings);\n");
@@ -301,6 +349,7 @@ namespace F8Framework.Core.Editor
             }
 
             //加载所有配置表
+            source.Append("\t\t[Preserve]\n");
             source.Append("\t\tpublic void LoadAll()\n");
             source.Append("\t\t{\n");
             foreach (string t in types)
@@ -311,6 +360,7 @@ namespace F8Framework.Core.Editor
             source.Append("\t\t}\n\n");
 
             //运行时加载所有配置表
+            source.Append("\t\t[Preserve]\n");
             source.Append("\t\tpublic void RuntimeLoadAll(Dictionary<String, System.Object> objs)\n");
             source.Append("\t\t{\n");
             foreach (string t in types)
@@ -321,71 +371,87 @@ namespace F8Framework.Core.Editor
             source.Append("\t\t}\n\n");
 
             //异步加载所有配置表
+            source.Append("\t\t[Preserve]\n");
             source.Append("\t\tpublic IEnumerable LoadAllAsync()\n");
             source.Append("\t\t{\n");
             foreach (string t in types)
             {
                 source.Append("\t\t\tyield return LoadAsync<" + t + ">("+ '"' + t + '"' + ", result => " +  "p_" + t + " = result" + " as " + t + ");\n");
             }
-
+            source.Append("#if UNITY_EDITOR\n");
+            source.Append("\t\t\tif (AssetManager.Instance.IsEditorMode)\n");
+            source.Append("\t\t\t{\n");
+            source.Append("\t\t\t\tReadExcel.Instance.LoadAllExcelData();\n");
+            source.Append("\t\t\t}\n");
+            source.Append("#endif\n");
             source.Append("\t\t}\n\n");
             
             //异步加载所有配置表
-            source.Append("\t\tpublic void LoadAllAsyncCallback(Action onLoadComplete)\n");
+            source.Append("\t\t[Preserve]\n");
+            source.Append("\t\tpublic void LoadAllAsyncCallback(Action onLoadComplete = null)\n");
             source.Append("\t\t{\n");
             source.Append("\t\t\tUtil.Unity.StartCoroutine(LoadAllAsyncIEnumerator(onLoadComplete));\n");
             source.Append("\t\t}\n\n");
             
             //异步加载所有配置表
-            source.Append("\t\tpublic IEnumerator LoadAllAsyncIEnumerator(Action onLoadComplete)\n");
+            source.Append("\t\t[Preserve]\n");
+            source.Append("\t\tpublic IEnumerator LoadAllAsyncIEnumerator(Action onLoadComplete = null)\n");
             source.Append("\t\t{\n");
             foreach (string t in types)
             {
                 source.Append("\t\t\tyield return LoadAsync<" + t + ">("+ '"' + t + '"' + ", result => " +  "p_" + t + " = result" + " as " + t + ");\n");
             }
+            source.Append("#if UNITY_EDITOR\n");
+            source.Append("\t\t\tif (AssetManager.Instance.IsEditorMode)\n");
+            source.Append("\t\t\t{\n");
+            source.Append("\t\t\t\tReadExcel.Instance.LoadAllExcelData();\n");
+            source.Append("\t\t\t}\n");
+            source.Append("#endif\n");
             source.Append("\t\t\tonLoadComplete?.Invoke();\n");
             source.Append("\t\t}\n\n");
             
             //反序列化
+            source.Append("\t\t[Preserve]\n");
             source.Append("\t\tpublic T Load<T>(string name)\n");
             source.Append("\t\t{\n");
-            source.Append("\t\t\tIFormatter f = new BinaryFormatter();\n");
+            // source.Append("\t\t\tIFormatter f = new BinaryFormatter();\n");
             source.Append("\t\t\tTextAsset textAsset = AssetManager.Instance.Load<TextAsset>(name);\n");
             source.Append("\t\t\tif (textAsset == null)\n");
             source.Append("\t\t\t{\n");
             source.Append("\t\t\t\treturn default(T);\n");
             source.Append("\t\t\t}\n");
             source.Append("\t\t\tAssetManager.Instance.Unload(name, false);\n");
-            source.Append("#if UNITY_WEBGL\n");
+            // source.Append("#if UNITY_WEBGL\n");
             source.Append("\t\t\tT obj = Util.LitJson.ToObject<T>(textAsset.text);\n");
             source.Append("\t\t\treturn obj;\n");
-            source.Append("#else\n");
-            source.Append("\t\t\tusing (MemoryStream memoryStream = new MemoryStream(textAsset.bytes))\n");
-            source.Append("\t\t\t{\n");
-            source.Append("\t\t\t\treturn (T)f.Deserialize(memoryStream);\n");
-            source.Append("\t\t\t}\n");
-            source.Append("#endif\n");
+            // source.Append("#else\n");
+            // source.Append("\t\t\tusing (MemoryStream memoryStream = new MemoryStream(textAsset.bytes))\n");
+            // source.Append("\t\t\t{\n");
+            // source.Append("\t\t\t\treturn (T)f.Deserialize(memoryStream);\n");
+            // source.Append("\t\t\t}\n");
+            // source.Append("#endif\n");
             source.Append("\t\t}\n\n");
             
+            source.Append("\t\t[Preserve]\n");
             source.Append("\t\tpublic IEnumerator LoadAsync<T>(string name, Action<T> callback)\n");
             source.Append("\t\t{\n");
-            source.Append("\t\t\tIFormatter f = new BinaryFormatter();\n");
+            // source.Append("\t\t\tIFormatter f = new BinaryFormatter();\n");
             source.Append("\t\t\tvar load = AssetManager.Instance.LoadAsyncCoroutine<TextAsset>(name);\n");
             source.Append("\t\t\tyield return load;\n");
             source.Append("\t\t\tTextAsset textAsset = AssetManager.Instance.GetAssetObject<TextAsset>(name);\n");
             source.Append("\t\t\tif (textAsset != null)\n");
             source.Append("\t\t\t{\n");
             source.Append("\t\t\t\tAssetManager.Instance.Unload(name, false);\n");
-            source.Append("#if UNITY_WEBGL\n");
+            // source.Append("#if UNITY_WEBGL\n");
             source.Append("\t\t\t\tT obj = Util.LitJson.ToObject<T>(textAsset.text);\n");
             source.Append("\t\t\t\tcallback(obj);\n");
-            source.Append("#else\n");
-            source.Append("\t\t\t\tusing (Stream s = new MemoryStream(textAsset.bytes))\n");
-            source.Append("\t\t\t\t{\n");
-            source.Append("\t\t\t\t\tT obj = (T)f.Deserialize(s);\n");
-            source.Append("\t\t\t\t\tcallback(obj);\n");
-            source.Append("\t\t\t\t}\n");
-            source.Append("#endif\n");
+            // source.Append("#else\n");
+            // source.Append("\t\t\t\tusing (Stream s = new MemoryStream(textAsset.bytes))\n");
+            // source.Append("\t\t\t\t{\n");
+            // source.Append("\t\t\t\t\tT obj = (T)f.Deserialize(s);\n");
+            // source.Append("\t\t\t\t\tcallback(obj);\n");
+            // source.Append("\t\t\t\t}\n");
+            // source.Append("#endif\n");
             source.Append("\t\t\t}\n");
             source.Append("\t\t}\n\n");
             source.Append("\t\tpublic void OnInit(object createParam)\n");

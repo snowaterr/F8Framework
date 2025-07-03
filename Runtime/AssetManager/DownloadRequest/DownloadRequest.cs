@@ -12,14 +12,14 @@ namespace F8Framework.Core
     public class DownloadRequest
     {
         /// <summary>
-        /// 禁用Unity缓存系统在WebGL平台
+        /// 禁用Unity缓存系统在WebGL平台（微信小游戏使用）
         /// </summary>
         public static bool DisableUnityCacheOnWebGL = false;
         
         private DownloadType type;
         private UnityWebRequest uwr;
         
-        private enum DownloadType
+        private enum DownloadType : byte
         {
             NONE,
             FILE,
@@ -40,7 +40,7 @@ namespace F8Framework.Core
         /// 创建一个AssetBundle下载请求。
         /// </summary>
         /// <param name="uri">请求的URI。</param>
-        /// <param name="version">
+        /// <param name="hash">
         /// 一个整数版本号，将与AssetBundle的缓存版本进行比较以确定是否下载。
         /// 将此数字递增以强制Unity重新下载缓存的AssetBundle。
         /// 如果为零，则忽略版本分配。
@@ -58,7 +58,7 @@ namespace F8Framework.Core
             type = DownloadType.ASSET_BUNDLE;
             SendAssetBundleDownloadRequest(uri, hash, crc);
         }
-
+        
         /// <summary>
         /// 终止正在进行的下载。
         /// </summary>
@@ -136,12 +136,8 @@ namespace F8Framework.Core
 
             // 请求完成后检查是否有错误
             yield return uwr.SendWebRequest();
-
-#if UNITY_2020_2_OR_NEWER
+            
             if (uwr.result != UnityWebRequest.Result.Success)
-#else
-            if (uwr.isNetworkError || uwr.isHttpError)
-#endif
             {
                 LogF8.LogError($"无法对 URI：{uri} 发起资源包下载请求。错误：{uwr.error}");
                 LoadFail();

@@ -1,15 +1,17 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 
 namespace F8Framework.Core
 {
-	public enum PlayMode
+	public enum PlayMode : byte
 	{
 		Append,
 		Join
 	}
 
-	public class Sequence : IRecyclable<Sequence>
+	public class Sequence : IEnumerator
 	{
 		private List<BaseTween> tweenList = new List<BaseTween>();
 		private List<TimeEvent> timeEvents = new List<TimeEvent>();
@@ -22,7 +24,7 @@ namespace F8Framework.Core
 
 		public Action OnComplete = null;
 		
-		public Action<Sequence> Recycle { get; set; }
+		public Action Recycle { get; set; }
 
 		public Sequence()
 		{
@@ -38,8 +40,11 @@ namespace F8Framework.Core
 				if (timeEvents[n].Time < timer)
 				{
 					timeEvents[n].Action.Invoke();
-					timeEvents.RemoveAt(n);
-					n--;
+					if (timeEvents.Count > 0)
+					{
+						timeEvents.RemoveAt(n);
+						n--;
+					}
 				}
 			}
 
@@ -47,13 +52,11 @@ namespace F8Framework.Core
 
 		public void SetOnComplete(Action action)
 		{
-			OnComplete += action;
+			Recycle += action;
 		}
 
 		private void CheckLoops()
 		{
-			tweenList.Clear();
-			
 			if (loops < 0 || loops > 0)
 			{
 				loops--;
@@ -61,25 +64,22 @@ namespace F8Framework.Core
 			}
 			else
 			{
-				
 				//recicle all tweens
 				foreach (var tween in tweenList)
 				{
-					tween.Recycle(tween);
+					tween.CanRecycle = true;
+					tween.IsRecycle = true;
 				}
-				
+				tweenList.Clear();
 				
 				//we are ready to let this object go
-				Recycle?.Invoke(this);
+				Recycle?.Invoke();
 			}
 		}
 
 		private void RunAigan()
 		{
 			timer = 0.0f;
-			OnComplete = null;
-			
-			OnComplete += CheckLoops;
 			ignoreCommands = true;
 			
 			for (int n = 0; n < commandQueue.Count; n++)
@@ -91,7 +91,7 @@ namespace F8Framework.Core
 
 		public void Append(BaseTween tween)
 		{
-			tween.HandleBySequence = true;
+			tween.CanRecycle = false;
 			
 			if (ShouldPlayInmediatly())
 			{
@@ -106,28 +106,28 @@ namespace F8Framework.Core
 		
 		public void Join(BaseTween tween)
 		{
-			tween.HandleBySequence = true;
+			tween.CanRecycle = false;
 			
 			if (ShouldPlayInmediatly())
 			{
 				PlayTweenInmediatly(tween, PlayMode.Join);
+				head = tween;
 				return;
 			}
-
-			var tweenP = GetPenultimate();
-			PlayTweenOnComplete(tween, tweenP, PlayMode.Join);
+			
+			PlayTweenOnComplete(tween, head, PlayMode.Join);
+			head = tween;
 		}
 
 		private void PlayTweenInmediatly(BaseTween tween, PlayMode playMode)
 		{
 			tweenList.Add(tween);
 			
-			tween.SetOnComplete(CheckIfSequenceIsComplete);
-			tween.SetOnComplete(() => tween.SetIsPause(true));
+			tween.SetOnCompleteSequence(CheckIfSequenceIsComplete);
+			tween.SetOnCompleteSequence(() => tween.SetIsPause(true));
 
 			if (!ignoreCommands)
 			{
-				
 				commandQueue.Add(GetCommand(playMode, tween));
 			}
 		}
@@ -135,17 +135,18 @@ namespace F8Framework.Core
 		private void PlayTweenOnComplete(BaseTween tween, BaseTween previousTween, PlayMode playMode)
 		{
 			tweenList.Add(tween);
-			
-			//pause the tween until it can actually run
-			tween.SetIsPause(true);
-			tween.SetOnComplete(() => tween.SetIsPause(true));
-			previousTween.SetOnComplete(delegate { RunTween(tween); });
-			
-			tween.SetOnComplete(CheckIfSequenceIsComplete);
+
+			// 如果是 Append 模式，让动画暂停直到上一个动画完成
+			if (playMode == PlayMode.Append)
+			{
+				tween.SetIsPause(true);
+			}
+    
+			previousTween.SetOnCompleteSequence(() => RunTween(tween));
+			tween.SetOnCompleteSequence(CheckIfSequenceIsComplete);
 
 			if (!ignoreCommands)
 			{
-				
 				commandQueue.Add(GetCommand(playMode, tween));
 			}
 		}
@@ -154,7 +155,7 @@ namespace F8Framework.Core
 		{
 			if (mode == PlayMode.Append)
 			{
-				return  new AppendTweenCommand(tween, this);
+				return new AppendTweenCommand(tween, this);
 			}
 			else
 			{
@@ -183,7 +184,7 @@ namespace F8Framework.Core
 				return;
 			}
 			
-			head.SetOnComplete(callback);
+			head.SetOnCompleteSequence(callback);
 		}
 
 		public void Join(Action callback)
@@ -194,7 +195,7 @@ namespace F8Framework.Core
 				return;
 			}
 			
-			GetPenultimate().SetOnComplete(callback);
+			GetPenultimate().SetOnCompleteSequence(callback);
 		}
 
 		public void RunAtTime(Action callback, float time)
@@ -210,10 +211,19 @@ namespace F8Framework.Core
 
 		public void Reset()
 		{
+			foreach (var tween in tweenList)
+			{
+				tween.CanRecycle = true;
+				tween.IsRecycle = true;
+			}
 			tweenList.Clear();
 			timeEvents.Clear();
 			timer = 0.0f;
-			OnComplete = null;
+			loops = 0;
+			ignoreCommands = false;
+			commandQueue.Clear();
+			head = null;
+			Recycle = null;
 		}
 
 		private void RunTween(BaseTween tween)
@@ -245,6 +255,44 @@ namespace F8Framework.Core
 			return tweenList[tweenList.Count - 2];
 		}
 
+		/// <summary>使用此方法在协程中等待Sequence。</summary>
+		/// <example><code>
+		/// IEnumerator Coroutine() {
+		///		var sequence = SequenceManager.GetSequence();
+		///		var baseTween = gameObject.Move(Vector3.one, 1f);
+		///		sequence.Append(baseTween);
+		///		yield return sequence;
+		/// }
+		/// </code></example>
+		bool IEnumerator.MoveNext() {
+			return Recycle != null;
+		}
+
+		object IEnumerator.Current {
+			get {
+				if (Recycle == null)
+				{
+					LogF8.LogError("已回收的Sequence无法访问当前值");
+				}
+				return null;
+			}
+		}
+
+		void IEnumerator.Reset() => throw new NotSupportedException();
+        
+		/// <summary>此方法是异步/等待支持所必需的。不要直接使用它。</summary>
+		/// <example><code>
+		/// async void Coroutine() {
+		///		var sequence = SequenceManager.GetSequence();
+		///		var baseTween = gameObject.Move(Vector3.one, 1f);
+		///		sequence.Append(baseTween);
+		///     await sequence;
+		/// }
+		/// </code></example>
+		[EditorBrowsable(EditorBrowsableState.Never)]
+		public SwquenceAwaiter GetAwaiter() {
+			return new SwquenceAwaiter(this);
+		}
 	}
 
 	public abstract class Command
@@ -272,7 +320,7 @@ namespace F8Framework.Core
 		public override void Execute()
 		{
 			tween.ReplayReset();
-			tween.SetOnComplete(() => tween.IsComplete = true);
+			tween.ClearOnCompleteSequence();
 			sequence.Append(tween);
 		}
 	}
@@ -289,7 +337,7 @@ namespace F8Framework.Core
 		public override void Execute()
 		{
 			tween.ReplayReset();
-			tween.SetOnComplete(() => tween.IsComplete = true);
+			tween.ClearOnCompleteSequence();
 			sequence.Join(tween);
 		}
 	}

@@ -7,81 +7,105 @@ namespace F8Framework.Core.Editor
 {
     public class F8Helper : ScriptableObject
     {
-        [MenuItem("开发工具/设置Excel存放目录")]
+        [MenuItem("开发工具/设置Excel存放目录", false, 104)]
         public static void SetExcelPath()
         {
-            string lastExcelPath = EditorPrefs.GetString("ExcelPath", default);
+            string lastExcelPath = F8EditorPrefs.GetString("ExcelPath", default);
             string tempExcelPath = EditorUtility.OpenFolderPanel("设置Excel存放目录", lastExcelPath ?? Application.dataPath, "");
             if (!tempExcelPath.IsNullOrEmpty())
             {
-                EditorPrefs.SetString("ExcelPath", tempExcelPath);
+                F8EditorPrefs.SetString("ExcelPath", tempExcelPath);
             }
             LogF8.LogConfig("设置Excel存放目录：" + tempExcelPath);
         }
         
-        [MenuItem("开发工具/F8Run _F8")]
-        public static void F8Run()
+        [MenuItem("开发工具/编辑器模式（勾选）", true)]
+        public static bool SetIsEditorMode()
         {
-            CopyAndroidManifest();
-            EditorPrefs.SetBool("compilationFinishedHotUpdateDll", true);
-            EditorPrefs.SetBool("compilationFinishedBuildAB", true);
-            LoadAllExcelData();
+            bool isEditorMode = F8EditorPrefs.GetBool("IsEditorMode", false);
+            Menu.SetChecked("开发工具/编辑器模式（勾选）", isEditorMode);
+            return true;
+        }
+        
+        [MenuItem("开发工具/编辑器模式（勾选）")]
+        public static void SwitchIsEditorMode()
+        {
+            bool isEditorMode = F8EditorPrefs.GetBool("IsEditorMode", false);
+            F8EditorPrefs.SetBool("IsEditorMode", !isEditorMode);
+        }
+        
+        
+        [MenuItem("开发工具/清除AssetBundleNames")]
+        public static void ClearAssetBundlesName()
+        {
+            ABBuildTool.ClearAllAssetNames();
         }
 
-        public static void CopyAndroidManifest()
+        [MenuItem("开发工具/1: F8Run _F8", false, 200)]
+        public static void F8Run()
         {
-            if (!File.Exists(Application.dataPath + "/Plugins/Android/AndroidManifest.xml"))
-            {
-                FileTools.SafeCopyFile(
-                    FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 3)) +
-                    "/Tests/SDKManager/AndroidManifest.xml",
-                    Application.dataPath + "/Plugins/Android/AndroidManifest.xml");
-                LogF8.Log("复制 AndroidManifest.xml 至 " + Application.dataPath + "/Plugins/Android");
-                AssetDatabase.Refresh();
-            }
-            if (!File.Exists(Application.dataPath + "/Plugins/Android/mainTemplate.gradle"))
-            {
-                FileTools.SafeCopyFile(
-                    FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 3)) +
-                    "/Tests/SDKManager/mainTemplate.gradle",
-                    Application.dataPath + "/Plugins/Android/mainTemplate.gradle");
-                LogF8.Log("复制 mainTemplate.gradle 至 " + Application.dataPath + "/Plugins/Android");
-                AssetDatabase.Refresh();
-            }
+            LoadAllExcelData();
+            F8EditorPrefs.SetBool("compilationFinishedHotUpdateDll", true);
+            F8EditorPrefs.SetBool("compilationFinishedBuildAB", true);
         }
+
+        // 补充元数据，不会热更新此处的dll，一般在{project}/HybridCLRData/AssembliesPostIl2CppStrip/{target}目录下
+        public static List<string> AOTDllList = new List<string>
+        {
+            "mscorlib.dll",
+            "System.dll",
+            "System.Core.dll", // 如果使用了Linq，需要这个
+            // "Newtonsoft.Json.dll", 
+            // "protobuf-net.dll",
+            "F8Framework.Core.dll", // 为了能使用框架中的泛型
+        };
         
-        [MenuItem("开发工具/生成并复制热更新Dll-F8")]
+        [MenuItem("开发工具/3: 生成并复制热更新Dll-F8", false, 210)]
         public static void GenerateCopyHotUpdateDll()
         {
-            // EditorPrefs.SetBool("compilationFinishedHotUpdateDll", false);
+            // F8EditorPrefs.SetBool("compilationFinishedHotUpdateDll", false);
             // HybridCLR.Editor.Commands.PrebuildCommand.GenerateAll();
-            // FileTools.SafeClearDir(Application.dataPath + "/AssetBundles/Code");
-            // FileTools.CheckDirAndCreateWhenNeeded(Application.dataPath + "/AssetBundles/Code");
-            // List<string> hotUpdateDll = new List<string>()
+            //
+            // string outpath = Application.dataPath + "/AssetBundles/Code/";
+            //
+            // FileTools.SafeClearDir(outpath);
+            // FileTools.CheckDirAndCreateWhenNeeded(outpath);
+            // foreach (var dll in HybridCLR.Editor.SettingsUtil.HotUpdateAssemblyNamesExcludePreserved) // 获取HybridCLR设置面板的dll名称
             // {
-            //     "F8Framework.F8ExcelDataClass", // 自行添加需要热更的程序集
-            //     "F8Framework.Launcher"
-            // };
-            // foreach (var dll in hotUpdateDll)
-            // {
+            //     var path =
+            //         HybridCLR.Editor.SettingsUtil.GetHotUpdateDllsOutputDirByTarget(EditorUserBuildSettings
+            //             .activeBuildTarget) + "/" + dll + ".dll";
             //     FileTools.SafeCopyFile(
             //         HybridCLR.Editor.SettingsUtil.GetHotUpdateDllsOutputDirByTarget(EditorUserBuildSettings.activeBuildTarget) + "/" + dll + ".dll",
-            //         Application.dataPath + "/AssetBundles/Code/" + dll + ".bytes");
+            //         outpath + dll + ".bytes");
             //     LogF8.LogAsset("生成并复制热更新dll：" + dll);
             // }
+            //
+            // foreach (var aotDllName in F8Helper.AOTDllList)
+            // {
+            //     var mscorlibsouPath =
+            //         HybridCLR.Editor.SettingsUtil.GetAssembliesPostIl2CppStripDir(EditorUserBuildSettings
+            //             .activeBuildTarget) + "/" + aotDllName;
+            //     
+            //     FileTools.SafeCopyFile(
+            //         mscorlibsouPath,
+            //         outpath + aotDllName + "by.bytes");
+            //     LogF8.LogAsset("生成并复制补充元数据dll：" + aotDllName);
+            // }
+            //
             // AssetDatabase.Refresh();
         }
-        
-        [MenuItem("开发工具/Excel导表-F8")]
+
+        [MenuItem("开发工具/2: Excel导表-F8", false, 205)]
         public static void LoadAllExcelData()
         {
             ExcelDataTool.LoadAllExcelData();
         }
-        
-        [MenuItem("开发工具/打包AssetBundles目录资源-F8")]
+
+        [MenuItem("开发工具/4: 打包AssetBundles目录资源-F8", false, 215)]
         public static void BuildAssetBundles()
         {
-            EditorPrefs.SetBool("compilationFinishedBuildAB", false);
+            F8EditorPrefs.SetBool("compilationFinishedBuildAB", false);
             ABBuildTool.BuildAllAB();
         }
 
@@ -102,12 +126,12 @@ namespace F8Framework.Core.Editor
         
         private static void OnEditorQuit()
         {
-            EditorPrefs.SetBool("compilationFinished", false);
-            EditorPrefs.SetBool("compilationFinishedHotUpdateDll", false);
-            EditorPrefs.SetBool("compilationFinishedBuildAB", false);
-            EditorPrefs.SetBool("compilationFinishedBuildPkg", false);
-            EditorPrefs.SetBool("compilationFinishedBuildRun", false);
-            EditorPrefs.SetBool("compilationFinishedBuildUpdate", false);
+            F8EditorPrefs.SetBool("compilationFinished", false);
+            F8EditorPrefs.SetBool("compilationFinishedHotUpdateDll", false);
+            F8EditorPrefs.SetBool("compilationFinishedBuildAB", false);
+            F8EditorPrefs.SetBool("compilationFinishedBuildPkg", false);
+            F8EditorPrefs.SetBool("compilationFinishedBuildRun", false);
+            F8EditorPrefs.SetBool("compilationFinishedBuildUpdate", false);
         }
 
         private static void ProjectWindowItemOnGUI(string guid, Rect selectionRect)

@@ -15,7 +15,7 @@ namespace F8Framework.Core.Editor
         static string CSV_Path = "Assets/Asset/Localization收集的中文.csv";
         static List<string> textInstanceIDs = new List<string>();
 
-        [MenuItem("Assets/（F8UI界面管理功能）/（收集UI所有的中文放入本地化表）", false, -5)]
+        [MenuItem("Assets/（F8UI界面管理功能）/（收集UI所有的中文放入本地化表）", false, 1025)]
         public static void CollectionLocalization()
         {
             // 获取所有选中 文件、文件夹的 GUID
@@ -132,7 +132,7 @@ namespace F8Framework.Core.Editor
 
         static bool IsChinese(char c)
         {
-            return c >= 0x4E00 && c <= 0x9FA5;
+            return c >= 0x4E00 && c <= 0x9FFF;
         }
 
         static bool CheckString(string str)

@@ -13,7 +13,6 @@ namespace F8Framework.Core
     /// </summary>
 #if UNITY_EDITOR
     [DisallowMultipleComponent]
-    [AddComponentMenu(Constants.F8PoolComponentPath + "F8 Game Object Pool")]
 #endif
     public sealed class F8GameObjectPool : MonoBehaviour
     {
@@ -298,7 +297,7 @@ namespace F8Framework.Core
 #endif
                     return;
                 }
-                
+                _preloadSize = Mathf.Clamp(count, 0, _capacity);
                 AddPoolableToList(_despawnedPoolables, InstantiateAndSetupPoolable(true), 
                     ref _despawnedClonesCount);
             }

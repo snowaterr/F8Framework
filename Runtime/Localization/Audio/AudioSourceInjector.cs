@@ -14,21 +14,37 @@ namespace F8Framework.Core
 		public void Inject<T1, T2>(T1 localizedData, T2 localizer) where T2 : LocalizerBase
 		{
 			var isPlaying = audio.isPlaying;
-			var time = audio.time;
+#if !UNITY_WEBGL
+            var time = audio.time;
+#endif
 			if (isPlaying) audio.Stop();
 			var playFromSamePosition = (localizer as AudioLocalizer)?.playFromSamePositionWhenInject;
 
-			audio.clip = localizedData as AudioClip;
-			if (isPlaying)
+			if (localizedData is AudioClip audioClip)
 			{
-				audio.Play();
-				if (playFromSamePosition.HasValue && playFromSamePosition.Value)
+				Play(audioClip);
+			}
+			else if (localizedData is string textIDValue)
+			{
+				AssetManager.Instance.LoadAsync<AudioClip>(textIDValue, Play);
+			}
+			
+			void Play(AudioClip clip)
+			{
+				audio.clip = clip;
+				if (isPlaying)
 				{
-					audio.time = time;
-				}
-				else
-				{
-					audio.time = 0f;
+					audio.Play();
+#if !UNITY_WEBGL
+					if (playFromSamePosition.HasValue && playFromSamePosition.Value)
+					{
+						audio.time = time;
+					}
+					else
+					{
+						audio.time = 0f;
+					}
+#endif
 				}
 			}
 		}

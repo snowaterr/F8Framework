@@ -74,7 +74,12 @@ namespace F8Framework.Core
         {
             viewer.SetGestureTouchCount(gestureTouchCount);
         }
-
+        
+        private void SetKeyCodeEnable()
+        {
+            viewer.SetKeyCodeEnable(keyCodeBackQuote);
+        }
+        
         private void SetMailData()
         {
             Function.Instance.SetMailData(mailSetting);

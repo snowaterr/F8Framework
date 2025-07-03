@@ -19,7 +19,21 @@ namespace F8Framework.Core
 		{
 			if (localizedData is int index)
 			{
-				renderer.material.SetTexture(propertyName, texture2Ds[index]);
+				renderer.material.SetTexture(propertyName, texture2Ds?[index]);
+			}
+			else if (localizedData is string textIDValue)
+			{
+				AssetManager.Instance.LoadAsync(textIDValue, (asset) =>
+				{
+					if (asset is Sprite sprite)
+					{
+						Texture2D texture = sprite.texture;
+						renderer.material.SetTexture(propertyName, texture);
+						LogF8.LogAsset("本地化图片类型错误，已自动转换：" + asset);
+						return;
+					}
+					renderer.material.SetTexture(propertyName, asset as Texture2D);
+				});
 			}
 		}
 	}
